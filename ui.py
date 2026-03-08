@@ -4,7 +4,10 @@ import pygame
 from constants import *
 
 def get_font(size, bold=False):
-    return pygame.font.SysFont(FONT_MEDIUM[0], size, bold)
+    font = pygame.font.Font(FONT_MEDIUM[0], size)
+    if bold:
+        font.set_bold(True)
+    return font
 
 def draw_text(surface, text, font_size, color, x, y, center=True):
     font = get_font(font_size)
@@ -53,8 +56,10 @@ def draw_challenge(surface):
     draw_button(surface, pygame.Rect(btn_x + 150, 350, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "关卡2", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
     draw_button(surface, pygame.Rect(btn_x + 400, 350, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "关卡3", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
     draw_button(surface, pygame.Rect(btn_x, 500, BTN_WIDTH, BTN_SMALL_HEIGHT), "角色养成", FONT_MEDIUM[1], PURPLE, WHITE, WHITE)
-    draw_button(surface, pygame.Rect(btn_x, 600, BTN_WIDTH, BTN_SMALL_HEIGHT), "抽卡", FONT_MEDIUM[1], ORANGE, YELLOW, WHITE)  # 新增抽卡按钮
-    draw_text(surface, "ESC 返回主菜单", FONT_SMALL[1], GRAY, 50, SCREEN_HEIGHT-50)
+    draw_button(surface, pygame.Rect(btn_x, 600, BTN_WIDTH, BTN_SMALL_HEIGHT), "抽卡", FONT_MEDIUM[1], ORANGE, YELLOW, WHITE)
+    # 新增返回主菜单按钮
+    draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回主菜单", FONT_MEDIUM[1], GRAY, RED, WHITE)
+    # 保留原有的ESC提示
 
 # 绘制战斗界面（从 battle.py 调用）
 # ui.py 中的 draw_battle 函数（替换成这个）
@@ -65,29 +70,60 @@ def draw_battle(surface, player_team, enemy, current_level):
     # 队伍信息（左边）
     y = 150
     for role in player_team:
-        draw_text(surface, role["name"], FONT_MEDIUM[1], WHITE, 150, y)
+        # 判断角色是否死亡
+        is_dead = role["hp"] <= 0
+        name_color = GRAY if is_dead else WHITE
+        # 绘制角色名称
+        draw_text(surface, role["name"], FONT_MEDIUM[1], name_color, 150, y)
+        # 绘制血条（死亡时血条为空）
         draw_hp_bar(surface, 150, y+30, role["hp"], role["max_hp"])
-        draw_text(surface, f"HP: {role['hp']}/{role['max_hp']}", FONT_SMALL[1], WHITE, 400, y+30)
+        # 绘制HP数值
+        hp_text = f"HP: {role['hp']}/{role['max_hp']}"
+        draw_text(surface, hp_text, FONT_SMALL[1], name_color, 400, y+30)
+        # 如果死亡，在旁边添加“无法行动”标签
+        if is_dead:
+            draw_text(surface, "无法行动", FONT_SMALL[1], RED, 520, y+30)
         y += 80
-    # 敌人（中间偏右）
+
+    # 敌人信息（保持不变）
     draw_text(surface, enemy["name"], FONT_BIG[1], RED, SCREEN_WIDTH//2 +200, 200)
     draw_hp_bar(surface, SCREEN_WIDTH//2 +100, 250, enemy["hp"], enemy["max_hp"], color=RED)
     draw_text(surface, f"HP: {enemy['hp']}/{enemy['max_hp']}", FONT_MEDIUM[1], WHITE, SCREEN_WIDTH//2 +200, 280)
-    # 战斗按钮（底部）
+
+    # 战斗按钮（保持不变）
     draw_button(surface, pygame.Rect(100, 500, 150, 60), "攻击", FONT_MEDIUM[1], GRAY, BLUE, WHITE)
     draw_button(surface, pygame.Rect(300, 500, 150, 60), "技能(治疗)", FONT_MEDIUM[1], GRAY, PURPLE, WHITE)
     draw_button(surface, pygame.Rect(500, 500, 150, 60), "逃跑", FONT_MEDIUM[1], GRAY, GRAY, WHITE)
 
-    draw_text(surface, "ESC 返回选关", FONT_SMALL[1], GRAY, 50, SCREEN_HEIGHT-50)
 
 # 绘制养成界面（从 upgrade.py 调用）
-def draw_upgrade(surface, player_team, selected_role_index, inventory):
+def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
     draw_text(surface, "角色养成", FONT_TITLE[1], YELLOW, SCREEN_WIDTH//2, 60)
-    # 角色列表
-    for i, role in enumerate(player_team):
-        color = role["color"] if i == selected_role_index else GRAY
-        draw_button(surface, pygame.Rect(50, 150 + i*100, 200, 80), role["name"], FONT_MEDIUM[1], color, WHITE, WHITE)
-    # 详细信息
+
+    # 计算可见角色范围
+    visible_count = 6  # 一次最多显示6个
+    start_idx = scroll
+    end_idx = min(start_idx + visible_count, len(player_team))
+    visible_roles = player_team[start_idx:end_idx]
+
+    # 绘制角色列表（左侧）
+    y = 150
+    for i, role in enumerate(visible_roles):
+        actual_idx = start_idx + i  # 实际在 player_team 中的索引
+        # 按钮背景色：选中时用角色颜色，否则灰色
+        color = role["color"] if actual_idx == selected_role_index else GRAY
+        # 按钮边框：如果角色上阵，边框用金色，否则白色
+        border_color = YELLOW if role.get("active", False) else WHITE
+        # 绘制角色按钮
+        button_rect = pygame.Rect(50, y, 200, 80)
+        draw_button(surface, button_rect, role["name"], FONT_MEDIUM[1], color, border_color, WHITE)
+        y += 100
+
+    # 绘制滚动提示（如果有多页）
+    if len(player_team) > visible_count:
+        draw_text(surface, f"↑ 滚动查看 ({start_idx+1}-{end_idx}/{len(player_team)})", FONT_SMALL[1], GRAY, 150, 550)
+
+    # 详细信息（右侧）
     if player_team:
         role = player_team[selected_role_index]
         pygame.draw.rect(surface, role["color"], (300, 150, 180, 300))  # 全身像占位
@@ -104,10 +140,21 @@ def draw_upgrade(surface, player_team, selected_role_index, inventory):
         for sk in role["skills"]:
             draw_text(surface, f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']})", FONT_SMALL[1], WHITE, 320, sy)
             sy += 35
-    # 按钮
-    draw_button(surface, pygame.Rect(600, 500, 180, 60), f"经验书 ({inventory['exp_book']})", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
-    draw_button(surface, pygame.Rect(800, 500, 180, 60), f"技能书 ({inventory['skill_book']})", FONT_MEDIUM[1], GRAY, PURPLE, WHITE)
-    draw_text(surface, "ESC 返回选关", FONT_SMALL[1], GRAY, 50, SCREEN_HEIGHT-50)
+
+        # 切换按钮（根据当前状态显示不同文字）
+        btn_x = 600
+        btn_y = 550  # 调整位置避免与道具按钮重叠
+        btn_rect = pygame.Rect(btn_x, btn_y, 180, 60)
+        if role.get("active", False):
+            draw_button(surface, btn_rect, "设为待命", FONT_MEDIUM[1], GRAY, RED, WHITE)
+        else:
+            draw_button(surface, btn_rect, "设为上阵", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
+
+    # 道具按钮（调整位置）
+    draw_button(surface, pygame.Rect(600, 450, 180, 60), f"经验书 ({inventory['exp_book']})", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
+    draw_button(surface, pygame.Rect(800, 450, 180, 60), f"技能书 ({inventory['skill_book']})", FONT_MEDIUM[1], GRAY, PURPLE, WHITE)
+    #返回
+    draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回主菜单", FONT_MEDIUM[1], GRAY, RED, WHITE)
 
 # 绘制抽卡界面（从 gacha.py 调用）
 def draw_gacha(surface, gacha_result=None):
@@ -116,3 +163,26 @@ def draw_gacha(surface, gacha_result=None):
     if gacha_result:
         draw_text(surface, f"抽到 {gacha_result['rarity']} 角色: {gacha_result['name']}", FONT_BIG[1], gacha_result["color"], SCREEN_WIDTH//2, 500)
     draw_text(surface, "ESC 返回选关", FONT_SMALL[1], GRAY, 50, SCREEN_HEIGHT-50)
+
+#绘制关卡确认对话框
+def draw_confirm(surface, level):
+    # 半透明遮罩
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    overlay.set_alpha(180)
+    overlay.fill(BLACK)
+    surface.blit(overlay, (0, 0))
+    # 对话框背景
+    dialog_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, SCREEN_HEIGHT//2 - 100, 400, 200)
+    pygame.draw.rect(surface, DARK_GRAY, dialog_rect, border_radius=10)
+    pygame.draw.rect(surface, WHITE, dialog_rect, 3, border_radius=10)
+    # 文字
+    draw_text(surface, f"确定要进入关卡 {level} 吗？", FONT_MEDIUM[1], WHITE, SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 40)
+    # 两个按钮
+    btn_w, btn_h = 120, 50
+    btn_y = SCREEN_HEIGHT//2 + 20
+    # 返回按钮
+    return_rect = pygame.Rect(SCREEN_WIDTH//2 - 140, btn_y, btn_w, btn_h)
+    draw_button(surface, return_rect, "返回", FONT_MEDIUM[1], GRAY, RED, WHITE)
+    # 冲鸭按钮
+    go_rect = pygame.Rect(SCREEN_WIDTH//2 + 20, btn_y, btn_w, btn_h)
+    draw_button(surface, go_rect, "冲鸭！", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
