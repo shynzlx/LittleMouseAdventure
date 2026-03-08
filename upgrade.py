@@ -36,3 +36,18 @@ def use_skill_book(selected_role_index, player_team, inventory):
                 sk["proficiency"] = 0
                 sk["prof_to_next"] = int(sk["prof_to_next"] * 1.6)
                 print(f"技能 {sk['name']} 升级到 Lv.{sk['level']}")
+def toggle_active(selected_role_index, player_team):
+    """切换角色的上阵状态，最多5个上阵"""
+    role = player_team[selected_role_index]
+    if role.get("active", False):
+        # 当前是上阵，可以改为待命
+        role["active"] = False
+        print(f"{role['name']} 已设为待命")
+    else:
+        # 当前是待命，检查上阵人数是否已满
+        active_count = sum(1 for r in player_team if r.get("active", False))
+        if active_count >= 5:
+            print("上阵人数已达上限（最多5人）")
+        else:
+            role["active"] = True
+            print(f"{role['name']} 已设为上阵")
