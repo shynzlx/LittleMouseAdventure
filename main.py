@@ -114,10 +114,12 @@ while running:
                 new_state, selected_role_index = handle_upgrade_click(mouse_pos, selected_role_index, player_team, inventory, upgrade_scroll)
                 game_state = new_state
             
-            elif game_state == STATE_GACHA:     # 抽卡界面
+            elif game_state == STATE_GACHA:
                 result = handle_gacha_click(mouse_pos, player_team, inventory)
-                if result:                       # 抽到新角色
-                    gacha_result = result        # 保存用于显示
+                if result == "back":                     # 点击了返回按钮
+                    game_state = STATE_CHALLENGE
+                elif result:                              # 抽到新角色
+                    gacha_result = result
             
             elif game_state == STATE_CONFIRM:  #选关确认界面
                 result = handle_confirm_click(mouse_pos, confirm_level)
