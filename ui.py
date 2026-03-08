@@ -2,6 +2,29 @@
 
 import pygame
 from constants import *
+import avatar_mapper      # 初始化映射
+
+
+# 头像缓存
+avatar_cache = {}
+
+def load_avatar(role_name):
+    """根据角色名称加载头像，返回缩放后的图片或 None"""
+    filename = avatar_mapper.get_avatar_filename(role_name)
+    if filename is None:
+        return None  # 没有映射
+
+    # 构建完整路径
+    full_path = f"assets/avatars/{filename}"
+    if full_path not in avatar_cache:
+        try:
+            img = pygame.image.load(full_path).convert_alpha()
+            img = pygame.transform.scale(img, (180, 270))
+            avatar_cache[full_path] = img
+        except Exception as e:
+            print(f"头像加载失败: {full_path} - {e}")
+            avatar_cache[full_path] = None
+    return avatar_cache[full_path]
 
 def get_font(size, bold=False):
     font = pygame.font.Font(FONT_MEDIUM[0], size)
@@ -33,18 +56,29 @@ def draw_hp_bar(surface, x, y, current, max_val, width=200, height=20, color=RED
 
 # 绘制主菜单
 def draw_menu(surface, inventory):
+    # 加载背景图片（从 assets 文件夹）
+    try:
+        bg_image = pygame.image.load('assets/main.png')
+        # 缩放图片至窗口大小
+        bg_image = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        surface.blit(bg_image, (0, 0))
+    except:
+        # 如果图片加载失败，就用纯黑色背景
+        surface.fill(BLACK)
+    # 绘制游戏标题
     draw_text(surface, "冒险游戏", FONT_TITLE[1], WHITE, SCREEN_WIDTH//2, 150)
-    
+    # 计算按钮水平居中位置
     btn_x = (SCREEN_WIDTH - BTN_WIDTH) // 2
-    
-    draw_button(surface, pygame.Rect(btn_x, 250, BTN_WIDTH, BTN_HEIGHT), "闯关模式", FONT_BIG[1], GRAY, GREEN, WHITE)
-    draw_button(surface, pygame.Rect(btn_x, 400, BTN_WIDTH, BTN_HEIGHT), "保存游戏", FONT_BIG[1], GRAY, BLUE, WHITE)  # ← 新增保存按钮
-    draw_button(surface, pygame.Rect(btn_x, 550, BTN_WIDTH, BTN_HEIGHT), "大世界（敬请期待）", FONT_BIG[1], DARK_GRAY, GRAY, (150,150,150))
-    
+    # 按钮1：闯关模式（仅文字，无背景）
+    draw_text(surface, "闯关模式", FONT_BIG[1], GREEN, btn_x + BTN_WIDTH//2, 250 + BTN_HEIGHT//2)
+    # 按钮2：保存游戏
+    draw_text(surface, "保存游戏", FONT_BIG[1], BLUE, btn_x + BTN_WIDTH//2, 400 + BTN_HEIGHT//2)
+    # 按钮3：大世界（敬请期待）文字颜色用灰色
+    draw_text(surface, "大世界（敬请期待）", FONT_BIG[1], (150,150,150), btn_x + BTN_WIDTH//2, 550 + BTN_HEIGHT//2)
     # 显示金币
-    draw_text(surface, f"金币: {inventory.get('gold', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH - 220, 30)
-    
-    draw_text(surface, "点击按钮开始冒险！", FONT_MEDIUM[1], WHITE, SCREEN_WIDTH//2, 680)
+    draw_text(surface, f"金币: {inventory.get('gold', 0)}", FONT_MEDIUM[1], BLACK, SCREEN_WIDTH - 220, 30)
+    # 底部提示
+    draw_text(surface, "点击按钮开始冒险！", FONT_MEDIUM[1], RED, SCREEN_WIDTH//2, 680)
 
 
 # 绘制闯关模式
@@ -121,21 +155,27 @@ def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
 
     # 绘制滚动提示（如果有多页）
     if len(player_team) > visible_count:
-        draw_text(surface, f"↑ 滚动查看 ({start_idx+1}-{end_idx}/{len(player_team)})", FONT_SMALL[1], GRAY, 150, 550)
+        draw_text(surface, f"↑ 滚动查看 ({start_idx+1}-{end_idx}/{len(player_team)})", FONT_SMALL[1], RED, 150, 550)
 
     # 详细信息（右侧）
     if player_team:
         role = player_team[selected_role_index]
-        pygame.draw.rect(surface, role["color"], (300, 150, 180, 300))  # 全身像占位
+        # 尝试加载头像
+        avatar_img = load_avatar(role["name"])
+        if avatar_img:
+           surface.blit(avatar_img, (300, 150))
+        else:
+        # 如果没有头像，画纯色占位（改为正方形，与头像尺寸一致）
+            pygame.draw.rect(surface, role["color"], (300, 150, 180, 270))
         draw_text(surface, role["name"], FONT_BIG[1], WHITE, 390, 120)
         y = 180
-        draw_text(surface, f"稀有度: {role['rarity']}", FONT_MEDIUM[1], ORANGE, 520, y); y += 40
-        draw_text(surface, f"等级: Lv.{role['level']}", FONT_MEDIUM[1], YELLOW, 520, y); y += 40
-        draw_text(surface, f"经验: {role['exp']}/{role['exp_to_next']}", FONT_MEDIUM[1], WHITE, 520, y); y += 40
-        draw_text(surface, f"HP: {role['hp']}/{role['max_hp']}", FONT_MEDIUM[1], GREEN, 520, y); y += 40
-        draw_text(surface, f"攻击: {role['atk']}", FONT_MEDIUM[1], RED, 520, y); y += 40
-        draw_text(surface, f"耐力: {role['stamina']}", FONT_MEDIUM[1], BLUE, 520, y); y += 40
-        draw_text(surface, "技能：", FONT_MEDIUM[1], WHITE, 300, 480)
+        draw_text(surface, f"稀有度: {role['rarity']}", FONT_MEDIUM[1], ORANGE, 650, y); y += 40
+        draw_text(surface, f"等级: Lv.{role['level']}", FONT_MEDIUM[1], YELLOW, 650, y); y += 40
+        draw_text(surface, f"经验: {role['exp']}/{role['exp_to_next']}", FONT_MEDIUM[1], WHITE, 650, y); y += 40
+        draw_text(surface, f"HP: {role['hp']}/{role['max_hp']}", FONT_MEDIUM[1], GREEN, 650, y); y += 40
+        draw_text(surface, f"攻击: {role['atk']}", FONT_MEDIUM[1], RED, 650, y); y += 40
+        draw_text(surface, f"耐力: {role['stamina']}", FONT_MEDIUM[1], BLUE, 650, y); y += 40
+        draw_text(surface, "技能：", FONT_MEDIUM[1], WHITE, 400, 480)
         sy = 520
         for sk in role["skills"]:
             draw_text(surface, f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']})", FONT_SMALL[1], WHITE, 320, sy)
@@ -187,4 +227,4 @@ def draw_confirm(surface, level):
     draw_button(surface, return_rect, "返回", FONT_MEDIUM[1], GRAY, RED, WHITE)
     # 冲鸭按钮
     go_rect = pygame.Rect(SCREEN_WIDTH//2 + 20, btn_y, btn_w, btn_h)
-    draw_button(surface, go_rect, "冲鸭！", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
+    draw_button(surface, go_rect, "出发！", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
