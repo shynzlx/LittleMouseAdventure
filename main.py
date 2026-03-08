@@ -2,6 +2,7 @@
 
 import pygame
 import sys
+import avatar_mapper 
 
 # 导入所有模块（确保这些文件都在同一目录）
 from constants import *
