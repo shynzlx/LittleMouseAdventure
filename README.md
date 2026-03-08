@@ -1,5 +1,4 @@
 # LittleMouseAdventure
-an adventure RPG game practice
 这是一个使用 Pygame 开发的简易 RPG 游戏，包含战斗、养成、抽卡、存档等功能。所有代码均为 Python 脚本，结构清晰，适合学习或扩展。
 
 
