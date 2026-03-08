@@ -33,6 +33,7 @@ def perform_gacha(player_team, inventory):
     candidates = [r for r in role_pool if r["rarity"] == rarity]
     if candidates:
         new_role = random.choice(candidates).copy()
+        new_role["active"] = False          # 新角色默认不上阵
         player_team.append(new_role)
         print(f"抽到 {rarity} 角色: {new_role['name']}")
         return new_role
