@@ -159,10 +159,12 @@ def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
 # 绘制抽卡界面（从 gacha.py 调用）
 def draw_gacha(surface, gacha_result=None):
     draw_text(surface, "抽卡系统", FONT_TITLE[1], ORANGE, SCREEN_WIDTH//2, 120)
+    # 抽卡按钮
     draw_button(surface, pygame.Rect((SCREEN_WIDTH-BTN_WIDTH)//2, 350, BTN_WIDTH, BTN_HEIGHT), "抽卡一次", FONT_BIG[1], GRAY, YELLOW, WHITE)
     if gacha_result:
         draw_text(surface, f"抽到 {gacha_result['rarity']} 角色: {gacha_result['name']}", FONT_BIG[1], gacha_result["color"], SCREEN_WIDTH//2, 500)
-    draw_text(surface, "ESC 返回选关", FONT_SMALL[1], GRAY, 50, SCREEN_HEIGHT-50)
+    # 返回按钮（左下角）
+    draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回选关", FONT_MEDIUM[1], GRAY, RED, WHITE)
 
 #绘制关卡确认对话框
 def draw_confirm(surface, level):
