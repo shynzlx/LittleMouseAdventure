@@ -95,10 +95,16 @@ def handle_upgrade_click(pos, selected_role_index, player_team, inventory, scrol
     return selected_role_index
 
 def handle_gacha_click(pos, player_team, inventory):
-    """处理抽卡界面的点击，返回抽到的角色（如果有）"""
+    """处理抽卡界面的点击，返回抽到的角色 或 "back" 表示返回"""
     btn_x = (SCREEN_WIDTH - BTN_WIDTH) // 2
+    # 检测返回按钮（坐标与绘制时一致）
+    back_rect = pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT)
+    if back_rect.collidepoint(pos):
+        return "back"
+    # 检测抽卡按钮
     if pygame.Rect(btn_x, 350, BTN_WIDTH, BTN_HEIGHT).collidepoint(pos):
-        return perform_gacha(player_team, inventory)  # 传入 inventory
+        return perform_gacha(player_team, inventory)
+    
     return None
 
 def handle_save_click(pos):
