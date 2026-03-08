@@ -1,4 +1,4 @@
-#LittleMouseAdventure
+# LittleMouseAdventure
 A Practice Adventure RPG Game
 
 This is a simple RPG game developed with Pygame, featuring combat, character progression, gacha, save system and other functionalities. All code is written as Python scripts with a clear structure, making it suitable for learning or further expansion.
