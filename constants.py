@@ -17,18 +17,19 @@ PURPLE = (200, 100, 255)
 ORANGE = (255, 165, 0)
 
 # 字体
-FONT_TITLE = "SimHei", 72, True
-FONT_BIG = "SimHei", 48
-FONT_MEDIUM = "SimHei", 36
-FONT_SMALL = "SimHei", 28
+FONT_TITLE = "simhei.ttf", 72, True
+FONT_BIG = "simhei.ttf", 48
+FONT_MEDIUM = "simhei.ttf", 36
+FONT_SMALL = "simhei.ttf", 28
 
 # 状态枚举
 STATE_MENU = 0
 STATE_CHALLENGE = 1
-STATE_CHALLENGE_BATTLE = 3
-STATE_WORLD = 4
-STATE_UPGRADE = 5
-STATE_GACHA = 6  # 新增抽卡界面
+STATE_CHALLENGE_BATTLE = 3    #
+STATE_WORLD = 4    #大世界界面
+STATE_UPGRADE = 5 #角色养成界面
+STATE_GACHA = 6  # 新增抽卡界面、
+STATE_CONFIRM = 7  # 关卡确认界面
 
 # 按钮大小
 BTN_WIDTH = 450
@@ -48,7 +49,7 @@ GOLD_POS_Y = 20
 #初始角色
 ROLES = [
     {
-        "name": "战士",
+        "name": "一般鼠鼠",
         "level": 1,
         "exp": 0,
         "exp_to_next": 100,
