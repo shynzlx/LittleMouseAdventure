@@ -17,13 +17,16 @@ save.py	         存档与读档功能，使用 JSON 文件保存游戏进度。
 
 运行说明
 安装 Python 3.12+ 和 Pygame 库：
-
-bash
+```bash
 pip install pygame
-运行 main.py：
+```
 
-bash
+
+运行 main.py：
+```bash
 python main.py
+```
+
 游戏操作
 鼠标点击按钮进行选择
 
