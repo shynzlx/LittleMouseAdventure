@@ -56,7 +56,7 @@ def load_game():
         # 默认初始数据
         default_team = [
             {
-                "name": "战士",
+                "name": "一般鼠鼠",
                 "level": 1,
                 "exp": 0,
                 "exp_to_next": 100,
