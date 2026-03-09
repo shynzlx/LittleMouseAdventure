@@ -42,6 +42,7 @@ selected_role_index = 0          # 养成界面选中的角色
 gacha_result = None              # 抽卡结果临时显示
 upgrade_scroll = 0               # 养成界面的滚动偏移量
 confirm_level = 1                # 待确认的关卡
+current_skill_points = 0         # 技能点
 
 # ===== 回合制战斗相关变量 =====
 combatants = []          # 战斗单位列表
@@ -145,28 +146,22 @@ while running:
                     game_state = new_state
                     current_level = new_level
 
-            elif game_state == STATE_CHALLENGE_BATTLE:  # 战斗界面
-                # 调用新的战斗点击处理函数，返回新状态、战斗列表和当前索引
-                new_state, combatants, current_index = handle_battle_click(mouse_pos, game_state, combatants, current_index, player_team, enemy)
-                game_state = new_state
+            elif game_state == STATE_CHALLENGE_BATTLE:
+                new_state, combatants, current_index, new_skill_points = handle_battle_click(
+                    mouse_pos, game_state, combatants, current_index, player_team, enemy, current_skill_points)
+                current_skill_points = new_skill_points
                 if new_state == STATE_WIN:
-                # 发放奖励（根据当前关卡）
                     reward = get_reward_for_level(current_level)
                     for key, value in reward.items():
                         inventory[key] = inventory.get(key, 0) + value
-                    win_reward = reward      # 存储用于胜利界面显示
-                    game_state = STATE_WIN   # 切换到胜利弹窗
-                    # 注意：战斗列表已经通过 handle_battle_click 返回为空，无需再清空
+                    win_reward = reward
+                    game_state = STATE_WIN
                 elif new_state == STATE_CHALLENGE:
-                # 逃跑或胜利返回选关，已在 handle_battle_click 中回血
-                    game_state = new_state
-                # 可以不需要动画
-    
+                    game_state = STATE_CHALLENGE
                 else:
-                # 战斗继续（new_state == STATE_CHALLENGE_BATTLE）
                     game_state = new_state
-                    if new_state == STATE_CHALLENGE_BATTLE:
-                        anim_frame = 10  # 触发攻击动画
+                    if game_state == STATE_CHALLENGE_BATTLE:
+                        anim_frame = 10
 
             elif game_state == STATE_UPGRADE:   # 养成界面
                 new_state, selected_role_index = handle_upgrade_click(mouse_pos, selected_role_index, player_team, inventory, upgrade_scroll)
@@ -199,11 +194,12 @@ while running:
                             print("没有上阵角色，无法战斗！")
                             game_state = STATE_CHALLENGE
                         else:
-                            enemy = setup_enemy(lvl)
+                            enemy, skill_points = setup_enemy(lvl)
                             # ===== 初始化战斗单位 =====
                             combatants = initialize_combatants(active_team, enemy)
                             current_index = get_next_attacker(combatants)
                             anim_frame = 0
+                            current_skill_points = skill_points  #技能点
                             # ==========================
                             current_level = lvl
                             game_state = STATE_CHALLENGE_BATTLE
@@ -268,7 +264,7 @@ while running:
     elif game_state == STATE_CHALLENGE_BATTLE:
         active_team = get_active_team(player_team)
         # 传递战斗列表、当前索引和动画偏移量
-        draw_battle(screen, active_team, enemy, current_level, combatants, current_index, anim_offset)
+        draw_battle(screen, active_team, enemy, current_level, combatants, current_index, anim_offset, current_skill_points)
 
     elif game_state == STATE_UPGRADE:
         draw_upgrade(screen, player_team, selected_role_index, inventory, upgrade_scroll)

@@ -54,44 +54,58 @@ def handle_challenge_click(pos, game_state, current_level, player_team):
 # handlers.py 开头导入 reset_team_hp
 from battle import player_attack, player_skill, reset_team_hp  # 确保已有
 
-def handle_battle_click(pos, game_state, combatants, current_index, player_team, enemy):
-    """处理战斗界面的点击，返回 (new_game_state, combatants, current_index) 或 None"""
+def handle_battle_click(pos, game_state, combatants, current_index, player_team, enemy, skill_points):
+    """处理战斗界面的点击，返回 (new_game_state, combatants, current_index, new_skill_points)"""
     print(f"战斗点击: 位置 {pos}")
     current = combatants[current_index]
     if current["type"] == "enemy":
         print("现在是敌人回合，无法操作")
-        return game_state, combatants, current_index
+        return game_state, combatants, current_index, skill_points
+
+    # ===== 按钮区域定义（与UI保持一致）=====
+    margin = 20
+    button_y = SCREEN_HEIGHT - 60 - margin
+    btn_width, btn_height = 150, 60
+    btn_spacing = 10
+
+    x_attack = margin
+    x_skill = x_attack + btn_width + btn_spacing
+    x_run = x_skill + btn_width + btn_spacing
+    # ====================================
 
     # 攻击按钮
-    if 100 < pos[0] < 250 and 500 < pos[1] < 560:
+    if pygame.Rect(x_attack, button_y, btn_width, btn_height).collidepoint(pos):
         print("点击了攻击按钮")
-        result = player_attack(combatants, current_index, enemy)
-        if result == "win":
-            reset_team_hp(player_team)          # 回满血
-            return STATE_WIN, [], 0              # 进入胜利弹窗，清空战斗数据
-        else:
-            next_index = get_next_attacker(combatants)
-            return game_state, combatants, next_index
-
-    # 技能按钮
-    elif 300 < pos[0] < 450 and 500 < pos[1] < 560:
-        print("点击了技能按钮")
-        result = player_skill(combatants, current_index, player_team)
+        result, new_skill_points = player_attack(combatants, current_index, enemy, skill_points)
         if result == "win":
             reset_team_hp(player_team)
-            return STATE_WIN, [], 0
+            return STATE_WIN, [], 0, new_skill_points
         else:
             next_index = get_next_attacker(combatants)
-            return game_state, combatants, next_index
+            return game_state, combatants, next_index, new_skill_points
 
-    # 逃跑按钮（已在逃跑后回血）
-    elif 500 < pos[0] < 650 and 500 < pos[1] < 560:
+    # 技能按钮
+    elif pygame.Rect(x_skill, button_y, btn_width, btn_height).collidepoint(pos):
+        print("点击了技能按钮")
+        result, new_skill_points = player_skill(combatants, current_index, player_team, skill_points)
+        if result == "win":
+            reset_team_hp(player_team)
+            return STATE_WIN, [], 0, new_skill_points
+        elif result == "no_skill":
+            print("技能点不足！")
+            return game_state, combatants, current_index, skill_points
+        else:
+            next_index = get_next_attacker(combatants)
+            return game_state, combatants, next_index, new_skill_points
+
+    # 逃跑按钮
+    elif pygame.Rect(x_run, button_y, btn_width, btn_height).collidepoint(pos):
         print("点击了逃跑按钮")
         reset_team_hp(player_team)
-        return STATE_CHALLENGE, combatants, current_index   # 逃跑后直接返回选关
-    
-    # 没有点击有效按钮
-    return game_state, combatants, current_index
+        return STATE_CHALLENGE, combatants, current_index, skill_points
+
+    return game_state, combatants, current_index, skill_points
+   
 
 def handle_upgrade_click(pos, selected_role_index, player_team, inventory, scroll):
     # 检测返回主菜单按钮
@@ -137,7 +151,7 @@ def handle_gacha_click(pos, player_team, inventory):
     back_rect = pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT)
     if back_rect.collidepoint(pos):
         return "back"
-    # 检测抽卡按钮
+    # 检测抽卡按钮r
     if pygame.Rect(btn_x, 350, BTN_WIDTH, BTN_HEIGHT).collidepoint(pos):
         return perform_gacha(player_team, inventory)
     

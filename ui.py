@@ -3,29 +3,50 @@
 import pygame
 from constants import *
 import avatar_mapper      # 初始化映射
+import formation
 
 CYAN = (0, 255, 255)
 
 # 头像缓存
 avatar_cache = {}
 
-def load_avatar(role_name):
-    """根据角色名称加载头像，返回缩放后的图片或 None"""
+# ui.py
+
+def load_avatar(role_name, size=(180, 270)):
+    """根据角色名称加载头像，返回指定尺寸的图片或 None"""
     filename = avatar_mapper.get_avatar_filename(role_name)
     if filename is None:
-        return None  # 没有映射
+        return None
 
-    # 构建完整路径
     full_path = f"assets/avatars/{filename}"
-    if full_path not in avatar_cache:
+    cache_key = f"{full_path}_{size[0]}_{size[1]}"   # 包含尺寸的缓存键
+    if cache_key not in avatar_cache:
         try:
             img = pygame.image.load(full_path).convert_alpha()
-            img = pygame.transform.scale(img, (180, 270))
-            avatar_cache[full_path] = img
+            img = pygame.transform.scale(img, size)
+            avatar_cache[cache_key] = img
         except Exception as e:
             print(f"头像加载失败: {full_path} - {e}")
-            avatar_cache[full_path] = None
-    return avatar_cache[full_path]
+            avatar_cache[cache_key] = None
+    return avatar_cache[cache_key]
+
+def load_attack_avatar(role_name, size=(180, 270)):
+    """根据角色名称加载进攻头像，返回指定尺寸的图片或 None"""
+    filename = avatar_mapper.get_attack_avatar_filename(role_name)
+    if filename is None:
+        return None
+
+    full_path = f"assets/avatars/{filename}"
+    cache_key = f"{full_path}_{size[0]}_{size[1]}"
+    if cache_key not in avatar_cache:
+        try:
+            img = pygame.image.load(full_path).convert_alpha()
+            img = pygame.transform.scale(img, size)
+            avatar_cache[cache_key] = img
+        except Exception as e:
+            print(f"进攻头像加载失败: {full_path} - {e}")
+            avatar_cache[cache_key] = None
+    return avatar_cache[cache_key]
 
 def get_font(size, bold=False):
     font = pygame.font.Font(FONT_MEDIUM[0], size)
@@ -101,69 +122,96 @@ def draw_challenge(surface):
     # 保留原有的ESC提示
 
 # 绘制战斗界面（从 battle.py 调用）
-# ui.py 中的 draw_battle 函数（替换成这个）
+# ui.py - 重写 draw_battle 函数
 
-def draw_battle(surface, player_team, enemy, current_level, combatants, current_index, anim_offset=0):
+import formation
+
+def draw_battle(surface, player_team, enemy, current_level, combatants, current_index, anim_offset, skill_points):
     draw_text(surface, f"关卡 {current_level} - 战斗！", FONT_BIG[1], YELLOW, SCREEN_WIDTH//2, 50)
+    draw_text(surface, f"技能点: {skill_points}", FONT_MEDIUM[1], CYAN, SCREEN_WIDTH - 150, 100)
 
-    # 队伍信息（左边）
-    y = 150
-    for role in player_team:
-        # 在 combatants 中找到该角色对应的条目
+    # 获取玩家和敌人站位
+    player_slots = formation.get_player_slots(player_team)
+    enemy_slots = formation.get_enemy_slots(enemy)
+
+    # 绘制玩家站位
+    for role, slot_idx, pos in player_slots:
+        if role is None:
+            # 空位可绘制半透明框
+            pygame.draw.rect(surface, GRAY, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 2)
+            continue
+        # 找出该角色在 combatants 中的信息
         combatant = next((c for c in combatants if c["type"] == "player" and c["entity"] is role), None)
-        remaining = combatant["remaining_time"] if combatant else 0
-
-        # 判断是否当前行动者（用于高亮或动画）
         is_current = (combatant is not None and combatants[current_index] is combatant)
 
-        # 角色名称
-        name_color = GRAY if role["hp"] <= 0 else (YELLOW if is_current else WHITE)
-        draw_text(surface, role["name"], FONT_MEDIUM[1], name_color, 150, y)
-
-        # 血条
-        draw_hp_bar(surface, 150, y+30, role["hp"], role["max_hp"])
-
-        # HP数值
-        hp_text = f"HP: {role['hp']}/{role['max_hp']}"
-        draw_text(surface, hp_text, FONT_SMALL[1], name_color, 400, y+30)
-
-        # 剩余时间条（可选）
-        if remaining > 0:
-            bar_width = 100
-            fill_width = (remaining / BASE_TIME) * bar_width
-            pygame.draw.rect(surface, GRAY, (400, y+50, bar_width, 5))
-            pygame.draw.rect(surface, BLUE, (400, y+50, fill_width, 5))
-
-        # 如果死亡，显示“无法行动”
-        if role["hp"] <= 0:
-            draw_text(surface, "无法行动", FONT_SMALL[1], RED, 520, y+30)
-
-        # 如果是当前行动者且 anim_offset != 0，绘制偏移效果（模拟攻击前移）
+        # 绘制头像
+        '''size后面的数组是小头像的长宽'''
+        avatar_img = load_avatar(role["name"], size=(80, 120))  # 传入小尺寸
         if is_current and anim_offset != 0:
-            # 临时在角色位置绘制一个影子或直接移动文本？简单起见，我们移动名字
-            draw_text(surface, role["name"], FONT_MEDIUM[1], name_color, 150 + anim_offset, y)
+            attack_img = load_attack_avatar(role["name"], size=(80, 120))
+            if attack_img:
+                surface.blit(attack_img, (pos[0] + anim_offset, pos[1]))
+            else:
+                surface.blit(avatar_img, pos)
+        else:
+            if avatar_img:
+                surface.blit(avatar_img, pos)
+            else:
+                pygame.draw.rect(surface, role["color"], (*pos, 80, 120))  # 占位符尺寸也相应调整
 
-        y += 80
+        # 绘制角色名称和HP
+        name_color = GRAY if role["hp"] <= 0 else (YELLOW if is_current else WHITE)
+        draw_text(surface, role["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + 10)
+        hp_text = f"HP: {role['hp']}/{role['max_hp']}"
+        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT - 30)
 
-    # 敌人信息
-    enemy_combatant = combatants[-1] if combatants and combatants[-1]["type"] == "enemy" else None
-    enemy_remaining = enemy_combatant["remaining_time"] if enemy_combatant else 0
-    is_enemy_current = (enemy_combatant is not None and combatants[current_index] is enemy_combatant)
+        # 如果死亡，加灰色遮罩
+        if role["hp"] <= 0:
+            s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
+            s.set_alpha(128)
+            s.fill(GRAY)
+            surface.blit(s, pos)
 
-    enemy_name_color = YELLOW if is_enemy_current else RED
-    draw_text(surface, enemy["name"], FONT_BIG[1], enemy_name_color, SCREEN_WIDTH//2 +200, 200)
-    draw_hp_bar(surface, SCREEN_WIDTH//2 +100, 250, enemy["hp"], enemy["max_hp"], color=RED)
-    draw_text(surface, f"HP: {enemy['hp']}/{enemy['max_hp']}", FONT_MEDIUM[1], WHITE, SCREEN_WIDTH//2 +200, 280)
+# 敌人站位循环
+    for enemy_unit, slot_idx, pos in enemy_slots:
+        if enemy_unit is None:
+            # 绘制空位边框
+            pygame.draw.rect(surface, GRAY, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 2)
+            continue
 
-    # 敌人剩余时间条
-    if enemy_remaining > 0:
-        bar_width = 100
-        fill_width = (enemy_remaining / BASE_TIME) * bar_width
-        pygame.draw.rect(surface, GRAY, (SCREEN_WIDTH//2 +100, 300, bar_width, 5))
-        pygame.draw.rect(surface, RED, (SCREEN_WIDTH//2 +100, 300, fill_width, 5))
+        enemy_name = enemy_unit["name"]
+        combatant = next((c for c in combatants if c["type"] == "enemy"), None)
+        is_enemy_current = (combatant is not None and combatants[current_index] is combatant)
 
-    # 战斗按钮（仅在轮到玩家时可用，但这里不处理逻辑，仅绘制）
-    # 如果当前行动者是玩家，按钮正常颜色；否则变灰
+        # 加载头像
+        avatar_img = load_avatar(enemy_name, size=(80,120))   ###敌方头像尺寸
+
+        # 绘制头像（根据是否当前行动者和动画偏移决定位置）
+        if is_enemy_current and anim_offset != 0:
+            # 敌人进攻时向左移动
+            surface.blit(avatar_img, (pos[0] - anim_offset, pos[1]))
+        else:
+            if avatar_img:
+                surface.blit(avatar_img, pos)
+            else:
+                pygame.draw.rect(surface, RED, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
+
+        # 绘制名称和HP
+        name_color = YELLOW if is_enemy_current else RED
+        draw_text(surface, enemy_name, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + 10)
+        hp_text = f"HP: {enemy_unit['hp']}/{enemy_unit['max_hp']}"
+        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT - 30)
+    # ===== 战斗按钮绘制（左下角）=====
+    margin = 20
+    button_y = SCREEN_HEIGHT - 60 - margin
+    btn_width, btn_height = 150, 60
+    btn_spacing = 10
+
+    x_attack = margin
+    x_skill = x_attack + btn_width + btn_spacing
+    x_run = x_skill + btn_width + btn_spacing
+
+    # 按钮颜色逻辑（保持不变）
     current_is_player = (combatants[current_index]["type"] == "player") if combatants else False
     if current_is_player:
         btn_attack_color = BLUE
@@ -172,9 +220,15 @@ def draw_battle(surface, player_team, enemy, current_level, combatants, current_
         btn_attack_color = GRAY
         btn_skill_color = GRAY
 
-    draw_button(surface, pygame.Rect(100, 500, 150, 60), "攻击", FONT_MEDIUM[1], GRAY, btn_attack_color, WHITE)
-    draw_button(surface, pygame.Rect(300, 500, 150, 60), "技能(治疗)", FONT_MEDIUM[1], GRAY, btn_skill_color, WHITE)
-    draw_button(surface, pygame.Rect(500, 500, 150, 60), "逃跑", FONT_MEDIUM[1], GRAY, GRAY, WHITE)
+    draw_button(surface, pygame.Rect(x_attack, button_y, btn_width, btn_height),
+                "攻击", FONT_MEDIUM[1], GRAY, btn_attack_color, WHITE)
+    draw_button(surface, pygame.Rect(x_skill, button_y, btn_width, btn_height),
+                "技能(治疗)", FONT_MEDIUM[1], GRAY, btn_skill_color, WHITE)
+    draw_button(surface, pygame.Rect(x_run, button_y, btn_width, btn_height),
+                "逃跑", FONT_MEDIUM[1], GRAY, GRAY, WHITE)
+    # =================================
+    
+
 
 # 绘制养成界面（从 upgrade.py 调用）
 def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
@@ -322,3 +376,4 @@ def draw_win(surface, reward):
     btn_w, btn_h = 120, 50
     btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
     draw_button(surface, btn_rect, "确认", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
+

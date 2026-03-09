@@ -11,24 +11,24 @@ def initialize_combatants(player_team, enemy):
     """初始化战斗单位列表，包含所有上阵角色和敌人"""
     combatants = []
     # 添加玩家角色
-    for role in player_team:
-        # 确保每个角色有速度属性（使用stamina作为速度，或自行添加）
+    # 玩家角色：按上阵顺序分配站位索引 0~5
+    for idx, role in enumerate(player_team):
         speed = role.get("speed", role.get("stamina", 50))
         combatants.append({
             "type": "player",
             "entity": role,
             "speed": speed,
             "remaining_time": calculate_remaining_time(speed),
-            "index": len(combatants)  # 临时索引，用于动画等
+            "slot_index": idx   # 站位索引
         })
-    # 添加敌人
-    enemy_speed = enemy.get("speed", 30)  # 敌人默认速度
+    # 敌人：目前只有一个，固定站位索引0
+    enemy_speed = enemy.get("speed", 30)
     combatants.append({
         "type": "enemy",
         "entity": enemy,
         "speed": enemy_speed,
         "remaining_time": calculate_remaining_time(enemy_speed),
-        "index": len(combatants)
+        "slot_index": 0
     })
     return combatants
 
@@ -61,7 +61,7 @@ def get_next_attacker(combatants):
             next_index = i
     return next_index
 
-def player_attack(combatants, current_index, enemy):
+def player_attack(combatants, current_index, enemy, skill_points):
     """玩家角色攻击敌人"""
     attacker = combatants[current_index]["entity"]
     # 计算伤害（沿用原有公式）
@@ -70,13 +70,17 @@ def player_attack(combatants, current_index, enemy):
     print(f"{attacker['name']} 攻击！造成 {dmg} 伤害，敌人剩余 HP: {enemy['hp']}")
     # 攻击后更新剩余时间
     update_combatants(combatants, current_index)
+    skill_points += 1
     # 返回胜利状态
     if enemy["hp"] <= 0:
-        return "win"
-    return "continue"
+        return "win", skill_points
+    return "continue", skill_points
 
-def player_skill(combatants, current_index, player_team):
+def player_skill(combatants, current_index, player_team, skill_points):
     """玩家角色使用技能（治疗）"""
+    if skill_points <= 0:
+        print("技能点不足！")
+        return "no_skill", skill_points   # 新增状态表示技能点不足    
     attacker = combatants[current_index]["entity"]
     heal = random.randint(20, 35)
     for role in player_team:
@@ -85,7 +89,8 @@ def player_skill(combatants, current_index, player_team):
     print(f"{attacker['name']} 使用治疗！全体治疗 {heal} HP")
     # 治疗后更新剩余时间
     update_combatants(combatants, current_index)
-    return "continue"
+    skill_points -= 1
+    return "continue", skill_points
 
 def enemy_attack(combatants, current_index, player_team):
     """敌人攻击玩家队伍"""
