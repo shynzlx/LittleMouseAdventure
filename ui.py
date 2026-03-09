@@ -129,6 +129,7 @@ import formation
 def draw_battle(surface, player_team, enemy, current_level, combatants, current_index, anim_offset, skill_points):
     draw_text(surface, f"关卡 {current_level} - 战斗！", FONT_BIG[1], YELLOW, SCREEN_WIDTH//2, 50)
     draw_text(surface, f"技能点: {skill_points}", FONT_MEDIUM[1], CYAN, SCREEN_WIDTH - 150, 100)
+    draw_turn_order(surface, combatants, current_index, x=20, y=150)   #调用攻击顺序绘制
 
     # 获取玩家和敌人站位
     player_slots = formation.get_player_slots(player_team)
@@ -227,6 +228,55 @@ def draw_battle(surface, player_team, enemy, current_level, combatants, current_
     draw_button(surface, pygame.Rect(x_run, button_y, btn_width, btn_height),
                 "逃跑", FONT_MEDIUM[1], GRAY, GRAY, WHITE)
     # =================================
+
+def draw_turn_order(surface, combatants, current_index, x, y, width=150, entry_height=30):
+    """
+    绘制攻击顺序列表
+    :param surface: pygame 表面
+    :param combatants: 战斗单位列表
+    :param current_index: 当前行动单位在 combatants 中的索引
+    :param x: 列表左上角 x 坐标
+    :param y: 列表左上角 y 坐标
+    :param width: 列表宽度
+    :param entry_height: 每个条目高度
+    """
+    draw_turn_order_x = x - 20
+    draw_turn_order_y = y - 70
+    draw_turn_order_width = width - 20
+
+    if not combatants:  # 如果没有战斗单位，直接返回
+        return
+
+    # 按剩余时间从小到大排序（时间越短越快行动）
+    sorted_combatants = sorted(combatants, key=lambda c: c["remaining_time"])
+
+    # 绘制半透明背景
+    bg_height = len(sorted_combatants) * entry_height + 100
+    bg_surf = pygame.Surface((draw_turn_order_width, bg_height))
+    bg_surf.set_alpha(90)
+    bg_surf.fill(WHITE)
+    surface.blit(bg_surf, (draw_turn_order_x, draw_turn_order_y - 20))
+
+    # 绘制标题
+    draw_text(surface, "攻击顺序", 20, WHITE, draw_turn_order_x + draw_turn_order_width // 2, draw_turn_order_y)
+
+    # 绘制每个单位
+    for i, c in enumerate(sorted_combatants):
+        current_y = y + i * entry_height
+        entity = c["entity"]
+        name = entity.get("name", "未知")
+
+        # 判断颜色
+        if c == combatants[current_index]:
+            color = YELLOW          # 当前行动者高亮
+        elif c["type"] == "player":
+            # 玩家单位：存活为绿色，死亡为灰色
+            color = GREEN if entity["hp"] > 0 else GRAY
+        else:
+            # 敌人单位：存活为红色，死亡为灰色
+            color = RED if entity["hp"] > 0 else GRAY
+        # 绘制名称（居中）
+        draw_text(surface, name, 20, color, draw_turn_order_x + draw_turn_order_width // 2, current_y)
     
 
 
