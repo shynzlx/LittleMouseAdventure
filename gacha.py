@@ -5,10 +5,10 @@ from constants import *
 
 # 角色池（示例，扩展时可加更多）
 role_pool = [
-    {"name": "一般鼠鼠", "rarity": "N", "level": 1, "exp": 0, "exp_to_next": 80, "hp": 100, "max_hp": 100, "atk": 20, "stamina": 60, "skills": [], "color": GRAY},
-    {"name": "稀有鼠鼠", "rarity": "R", "level": 1, "exp": 0, "exp_to_next": 100, "hp": 70, "max_hp": 70, "atk": 40, "stamina": 45, "skills": [{"name": "冰箭", "level": 1, "proficiency": 0, "prof_to_next": 50}], "color": BLUE},
-    {"name": "聪明鼠鼠", "rarity": "SR", "level": 1, "exp": 0, "exp_to_next": 120, "hp": 110, "max_hp": 110, "atk": 10, "stamina": 70, "skills": [{"name": "神愈", "level": 1, "proficiency": 0, "prof_to_next": 60}], "color": YELLOW},
-    {"name": "传奇鼠鼠", "rarity": "SSR", "level": 1, "exp": 0, "exp_to_next": 150, "hp": 200, "max_hp": 200, "atk": 50, "stamina": 90, "skills": [{"name": "圣剑", "level": 1, "proficiency": 0, "prof_to_next": 80}], "color": PURPLE}
+    {"name": "一般鼠鼠", "rarity": "N", "level": 1, "exp": 0, "exp_to_next": 80, "hp": 100, "max_hp": 100, "atk": 20, "stamina": 60, "speed": 50, "skills": [], "color": GRAY},
+    {"name": "稀有鼠鼠", "rarity": "R", "level": 1, "exp": 0, "exp_to_next": 100, "hp": 70, "max_hp": 70, "atk": 40, "stamina": 45, "speed": 50, "skills": [{"name": "冰箭", "level": 1, "proficiency": 0, "prof_to_next": 50}], "color": BLUE},
+    {"name": "盾牌鼠鼠", "rarity": "SR", "level": 1, "exp": 0, "exp_to_next": 120, "hp": 110, "max_hp": 110, "atk": 10, "stamina": 70, "speed": 30, "skills": [{"name": "神愈", "level": 1, "proficiency": 0, "prof_to_next": 60}], "color": YELLOW},
+    {"name": "传奇鼠鼠", "rarity": "SSR", "level": 1, "exp": 0, "exp_to_next": 150, "hp": 200, "max_hp": 200, "atk": 50, "stamina": 90, "speed": 60, "skills": [{"name": "圣剑", "level": 1, "proficiency": 0, "prof_to_next": 80}], "color": PURPLE}
 ]
 
 def perform_gacha(player_team, inventory):

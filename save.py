@@ -64,6 +64,7 @@ def load_game():
                 "max_hp": 150,
                 "atk": 30,
                 "stamina": 80,
+                "speed": 50,
                 "rarity": "R",
                 "skills": [
                     {"name": "重击", "level": 1, "proficiency": 0, "prof_to_next": 50}

@@ -3,8 +3,8 @@
 # 键为角色名称（字符串），值为头像文件名（相对于 assets/avatars/ 目录）
 AVATAR_MAP = {
     "一般鼠鼠": "mouse_common.png",
-    "稀有鼠鼠": "mouse_rare.jpg",
-    "聪明鼠鼠": "mouse_smart.png",
+    "稀有鼠鼠": "mouse_rare.png",
+    "盾牌鼠鼠": "mouse_shield.png",
     "传奇鼠鼠": "mouse_legend.png",
     # 继续添加其他角色...
 }

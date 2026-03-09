@@ -1,56 +1,110 @@
-# battle.py - 战斗逻辑
+# battle.py - 回合制战斗逻辑
 
 import random
 from constants import *
 
-def player_attack(player_team, enemy, game_state, battle_turn):
-    """玩家攻击（仅存活角色参与）"""
-    print("player_attack 被调用")
-    # 筛选存活角色
-    alive_team = [r for r in player_team if r["hp"] > 0]
-    if not alive_team:
-        # 没有存活角色时无法攻击（理论上不会发生，因为攻击按钮应在有存活时才能点）
-        print("没有存活角色，无法攻击")
-        return game_state, battle_turn
-    dmg = random.randint(20, 40) + (sum(r["atk"] for r in alive_team) // len(alive_team))
-    enemy["hp"] -= dmg
-    print(f"攻击！造成 {dmg} 伤害，敌人剩余 HP: {enemy['hp']}")
-    if enemy["hp"] <= 0:
-        print("胜利！")
-        game_state = STATE_CHALLENGE
-    else:
-        battle_turn = "enemy"
-    return game_state, battle_turn
+def calculate_remaining_time(speed):
+    """根据速度计算初始剩余时间"""
+    return BASE_TIME / speed if speed > 0 else BASE_TIME
 
-def player_skill(player_team, game_state, battle_turn):
-    """玩家技能（治疗存活角色）"""
-    print("player_skill 被调用")
+def initialize_combatants(player_team, enemy):
+    """初始化战斗单位列表，包含所有上阵角色和敌人"""
+    combatants = []
+    # 添加玩家角色
+    for role in player_team:
+        # 确保每个角色有速度属性（使用stamina作为速度，或自行添加）
+        speed = role.get("speed", role.get("stamina", 50))
+        combatants.append({
+            "type": "player",
+            "entity": role,
+            "speed": speed,
+            "remaining_time": calculate_remaining_time(speed),
+            "index": len(combatants)  # 临时索引，用于动画等
+        })
+    # 添加敌人
+    enemy_speed = enemy.get("speed", 30)  # 敌人默认速度
+    combatants.append({
+        "type": "enemy",
+        "entity": enemy,
+        "speed": enemy_speed,
+        "remaining_time": calculate_remaining_time(enemy_speed),
+        "index": len(combatants)
+    })
+    return combatants
+
+def update_combatants(combatants, current_index):
+    """
+    当前行动者行动后，更新所有单位的剩余时间
+    规则：
+    1. 将当前行动者的剩余时间重置为 BASE_TIME / speed
+    2. 其他所有单位的剩余时间减去当前行动者行动前的剩余时间
+    3. 确保剩余时间不小于0
+    """
+    current = combatants[current_index]
+    action_time = current["remaining_time"]  # 当前单位行动前的剩余时间
+
+    # 重置当前单位的剩余时间
+    current["remaining_time"] = calculate_remaining_time(current["speed"])
+
+    # 其他单位减去 action_time
+    for i, c in enumerate(combatants):
+        if i != current_index:
+            c["remaining_time"] = max(0, c["remaining_time"] - action_time)
+
+def get_next_attacker(combatants):
+    """返回剩余时间最小的单位的索引"""
+    min_time = float('inf')
+    next_index = 0
+    for i, c in enumerate(combatants):
+        if c["remaining_time"] < min_time:
+            min_time = c["remaining_time"]
+            next_index = i
+    return next_index
+
+def player_attack(combatants, current_index, enemy):
+    """玩家角色攻击敌人"""
+    attacker = combatants[current_index]["entity"]
+    # 计算伤害（沿用原有公式）
+    dmg = random.randint(20, 40) + attacker["atk"]  # 简化：只考虑自身攻击
+    enemy["hp"] -= dmg
+    print(f"{attacker['name']} 攻击！造成 {dmg} 伤害，敌人剩余 HP: {enemy['hp']}")
+    # 攻击后更新剩余时间
+    update_combatants(combatants, current_index)
+    # 返回胜利状态
+    if enemy["hp"] <= 0:
+        return "win"
+    return "continue"
+
+def player_skill(combatants, current_index, player_team):
+    """玩家角色使用技能（治疗）"""
+    attacker = combatants[current_index]["entity"]
     heal = random.randint(20, 35)
     for role in player_team:
-        if role["hp"] > 0:  # 只治疗活着的角色
+        if role["hp"] > 0:
             role["hp"] = min(role["max_hp"], role["hp"] + heal)
-    print(f"全体治疗 {heal} HP")
-    battle_turn = "enemy"
-    return game_state, battle_turn
+    print(f"{attacker['name']} 使用治疗！全体治疗 {heal} HP")
+    # 治疗后更新剩余时间
+    update_combatants(combatants, current_index)
+    return "continue"
 
-def enemy_attack(player_team, enemy, game_state, battle_turn):
-    """敌人攻击"""
-    print("enemy_attack 被调用")
-    if not player_team:
-        return game_state, battle_turn
-    # 只选择活着的角色
+def enemy_attack(combatants, current_index, player_team):
+    """敌人攻击玩家队伍"""
+    enemy = combatants[current_index]["entity"]
+    # 只选择活着的玩家角色
     alive_team = [r for r in player_team if r["hp"] > 0]
     if not alive_team:
-        print("队伍全灭！")
-        game_state = STATE_CHALLENGE
-        battle_turn = "player"
-        return game_state, battle_turn
+        return "lose"
     target = random.choice(alive_team)
     dmg = random.randint(15, 30)
-    target["hp"] -= dmg
+    target["hp"] = max(0, target["hp"] - dmg)
     print(f"{enemy['name']} 攻击 {target['name']}，造成 {dmg} 伤害")
+    # 攻击后更新剩余时间
+    update_combatants(combatants, current_index)
+    # 检查队伍是否全灭
     if all(r["hp"] <= 0 for r in player_team):
-        print("失败！队伍全灭")
-        game_state = STATE_CHALLENGE
-    battle_turn = "player"
-    return game_state, battle_turn
+        return "lose"
+    return "continue"
+def reset_team_hp(team):
+    """将所有角色的HP回满"""
+    for role in team:
+        role["hp"] = role["max_hp"]

@@ -3,11 +3,13 @@ import pygame
 
 
 from constants import *
-from battle import player_attack, player_skill
+from battle import player_attack, player_skill, reset_team_hp
 from upgrade import use_exp_book, use_skill_book
 from gacha import perform_gacha
 from levels import setup_enemy
 from upgrade import use_exp_book, use_skill_book, toggle_active
+from battle import get_next_attacker
+
 
 def handle_menu_click(pos, game_state):
     btn_x = (SCREEN_WIDTH - BTN_WIDTH) // 2
@@ -22,6 +24,16 @@ def handle_menu_click(pos, game_state):
     if pygame.Rect(btn_x, 550, BTN_WIDTH, BTN_HEIGHT).collidepoint(pos):
         return STATE_WORLD
     
+    margin = 20
+    bottom_y = SCREEN_HEIGHT - MENU_BTN_HEIGHT - margin
+    gacha_rect = pygame.Rect(SCREEN_WIDTH - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    if gacha_rect.collidepoint(pos):
+        return STATE_GACHA
+
+    upgrade_rect = pygame.Rect(gacha_rect.left - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    if upgrade_rect.collidepoint(pos):
+        return STATE_UPGRADE
+
     return game_state
 
 
@@ -37,25 +49,49 @@ def handle_challenge_click(pos, game_state, current_level, player_team):
         return STATE_CONFIRM, 2
     elif pygame.Rect(btn_x + 400, 350, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT).collidepoint(pos):
         return STATE_CONFIRM, 3
-    elif pygame.Rect(btn_x, 500, BTN_WIDTH, BTN_SMALL_HEIGHT).collidepoint(pos):
-        return STATE_UPGRADE, current_level
-    elif pygame.Rect(btn_x, 600, BTN_WIDTH, BTN_SMALL_HEIGHT).collidepoint(pos):
-        return STATE_GACHA, current_level
     return game_state, current_level
 
-def handle_battle_click(pos, game_state, player_team, enemy, battle_turn):
-    """处理战斗界面的点击"""
-    print(f"战斗点击: 位置 {pos}")  # 调试输出
+# handlers.py 开头导入 reset_team_hp
+from battle import player_attack, player_skill, reset_team_hp  # 确保已有
+
+def handle_battle_click(pos, game_state, combatants, current_index, player_team, enemy):
+    """处理战斗界面的点击，返回 (new_game_state, combatants, current_index) 或 None"""
+    print(f"战斗点击: 位置 {pos}")
+    current = combatants[current_index]
+    if current["type"] == "enemy":
+        print("现在是敌人回合，无法操作")
+        return game_state, combatants, current_index
+
+    # 攻击按钮
     if 100 < pos[0] < 250 and 500 < pos[1] < 560:
         print("点击了攻击按钮")
-        game_state, battle_turn = player_attack(player_team, enemy, game_state, battle_turn)
+        result = player_attack(combatants, current_index, enemy)
+        if result == "win":
+            reset_team_hp(player_team)          # 回满血
+            return STATE_WIN, [], 0              # 进入胜利弹窗，清空战斗数据
+        else:
+            next_index = get_next_attacker(combatants)
+            return game_state, combatants, next_index
+
+    # 技能按钮
     elif 300 < pos[0] < 450 and 500 < pos[1] < 560:
         print("点击了技能按钮")
-        game_state, battle_turn = player_skill(player_team, game_state, battle_turn)
+        result = player_skill(combatants, current_index, player_team)
+        if result == "win":
+            reset_team_hp(player_team)
+            return STATE_WIN, [], 0
+        else:
+            next_index = get_next_attacker(combatants)
+            return game_state, combatants, next_index
+
+    # 逃跑按钮（已在逃跑后回血）
     elif 500 < pos[0] < 650 and 500 < pos[1] < 560:
         print("点击了逃跑按钮")
-        game_state = STATE_CHALLENGE
-    return game_state, battle_turn
+        reset_team_hp(player_team)
+        return STATE_CHALLENGE, combatants, current_index   # 逃跑后直接返回选关
+    
+    # 没有点击有效按钮
+    return game_state, combatants, current_index
 
 def handle_upgrade_click(pos, selected_role_index, player_team, inventory, scroll):
     # 检测返回主菜单按钮
@@ -125,3 +161,18 @@ def handle_confirm_click(pos, level):
     elif go_rect.collidepoint(pos):
         return ('go', level)
     return None
+
+def handle_lose_click(pos):
+    """处理失败界面点击，点击确认返回 True"""
+    btn_w, btn_h = 120, 50
+    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
+    if btn_rect.collidepoint(pos):
+        return True
+    return False
+def handle_win_click(pos):
+    """处理胜利界面点击，点击确认返回 True"""
+    btn_w, btn_h = 120, 50
+    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
+    if btn_rect.collidepoint(pos):
+        return True
+    return False

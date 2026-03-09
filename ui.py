@@ -4,6 +4,7 @@ import pygame
 from constants import *
 import avatar_mapper      # 初始化映射
 
+CYAN = (0, 255, 255)
 
 # 头像缓存
 avatar_cache = {}
@@ -65,8 +66,6 @@ def draw_menu(surface, inventory):
     except:
         # 如果图片加载失败，就用纯黑色背景
         surface.fill(BLACK)
-    # 绘制游戏标题
-    draw_text(surface, "冒险游戏", FONT_TITLE[1], WHITE, SCREEN_WIDTH//2, 150)
     # 计算按钮水平居中位置
     btn_x = (SCREEN_WIDTH - BTN_WIDTH) // 2
     # 按钮1：闯关模式（仅文字，无背景）
@@ -80,6 +79,14 @@ def draw_menu(surface, inventory):
     # 底部提示
     draw_text(surface, "点击按钮开始冒险！", FONT_MEDIUM[1], RED, SCREEN_WIDTH//2, 680)
 
+    #右下角水平排列两个按钮
+    margin = 20
+    bottom_y = SCREEN_HEIGHT - MENU_BTN_HEIGHT - margin
+    gacha_rect = pygame.Rect(SCREEN_WIDTH - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    draw_button(surface, gacha_rect, "抽卡", FONT_MEDIUM[1], ORANGE, YELLOW, WHITE)
+    upgrade_rect = pygame.Rect(gacha_rect.left - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    draw_button(surface, upgrade_rect, "角色养成", FONT_MEDIUM[1], PURPLE, WHITE, WHITE)
+
 
 # 绘制闯关模式
 def draw_challenge(surface):
@@ -89,46 +96,85 @@ def draw_challenge(surface):
     draw_button(surface, pygame.Rect(btn_x - 100, 350, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "关卡1", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
     draw_button(surface, pygame.Rect(btn_x + 150, 350, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "关卡2", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
     draw_button(surface, pygame.Rect(btn_x + 400, 350, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "关卡3", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
-    draw_button(surface, pygame.Rect(btn_x, 500, BTN_WIDTH, BTN_SMALL_HEIGHT), "角色养成", FONT_MEDIUM[1], PURPLE, WHITE, WHITE)
-    draw_button(surface, pygame.Rect(btn_x, 600, BTN_WIDTH, BTN_SMALL_HEIGHT), "抽卡", FONT_MEDIUM[1], ORANGE, YELLOW, WHITE)
-    # 新增返回主菜单按钮
+    # 返回主菜单按钮
     draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回主菜单", FONT_MEDIUM[1], GRAY, RED, WHITE)
     # 保留原有的ESC提示
 
 # 绘制战斗界面（从 battle.py 调用）
 # ui.py 中的 draw_battle 函数（替换成这个）
 
-def draw_battle(surface, player_team, enemy, current_level):
+def draw_battle(surface, player_team, enemy, current_level, combatants, current_index, anim_offset=0):
     draw_text(surface, f"关卡 {current_level} - 战斗！", FONT_BIG[1], YELLOW, SCREEN_WIDTH//2, 50)
 
     # 队伍信息（左边）
     y = 150
     for role in player_team:
-        # 判断角色是否死亡
-        is_dead = role["hp"] <= 0
-        name_color = GRAY if is_dead else WHITE
-        # 绘制角色名称
+        # 在 combatants 中找到该角色对应的条目
+        combatant = next((c for c in combatants if c["type"] == "player" and c["entity"] is role), None)
+        remaining = combatant["remaining_time"] if combatant else 0
+
+        # 判断是否当前行动者（用于高亮或动画）
+        is_current = (combatant is not None and combatants[current_index] is combatant)
+
+        # 角色名称
+        name_color = GRAY if role["hp"] <= 0 else (YELLOW if is_current else WHITE)
         draw_text(surface, role["name"], FONT_MEDIUM[1], name_color, 150, y)
-        # 绘制血条（死亡时血条为空）
+
+        # 血条
         draw_hp_bar(surface, 150, y+30, role["hp"], role["max_hp"])
-        # 绘制HP数值
+
+        # HP数值
         hp_text = f"HP: {role['hp']}/{role['max_hp']}"
         draw_text(surface, hp_text, FONT_SMALL[1], name_color, 400, y+30)
-        # 如果死亡，在旁边添加“无法行动”标签
-        if is_dead:
+
+        # 剩余时间条（可选）
+        if remaining > 0:
+            bar_width = 100
+            fill_width = (remaining / BASE_TIME) * bar_width
+            pygame.draw.rect(surface, GRAY, (400, y+50, bar_width, 5))
+            pygame.draw.rect(surface, BLUE, (400, y+50, fill_width, 5))
+
+        # 如果死亡，显示“无法行动”
+        if role["hp"] <= 0:
             draw_text(surface, "无法行动", FONT_SMALL[1], RED, 520, y+30)
+
+        # 如果是当前行动者且 anim_offset != 0，绘制偏移效果（模拟攻击前移）
+        if is_current and anim_offset != 0:
+            # 临时在角色位置绘制一个影子或直接移动文本？简单起见，我们移动名字
+            draw_text(surface, role["name"], FONT_MEDIUM[1], name_color, 150 + anim_offset, y)
+
         y += 80
 
-    # 敌人信息（保持不变）
-    draw_text(surface, enemy["name"], FONT_BIG[1], RED, SCREEN_WIDTH//2 +200, 200)
+    # 敌人信息
+    enemy_combatant = combatants[-1] if combatants and combatants[-1]["type"] == "enemy" else None
+    enemy_remaining = enemy_combatant["remaining_time"] if enemy_combatant else 0
+    is_enemy_current = (enemy_combatant is not None and combatants[current_index] is enemy_combatant)
+
+    enemy_name_color = YELLOW if is_enemy_current else RED
+    draw_text(surface, enemy["name"], FONT_BIG[1], enemy_name_color, SCREEN_WIDTH//2 +200, 200)
     draw_hp_bar(surface, SCREEN_WIDTH//2 +100, 250, enemy["hp"], enemy["max_hp"], color=RED)
     draw_text(surface, f"HP: {enemy['hp']}/{enemy['max_hp']}", FONT_MEDIUM[1], WHITE, SCREEN_WIDTH//2 +200, 280)
 
-    # 战斗按钮（保持不变）
-    draw_button(surface, pygame.Rect(100, 500, 150, 60), "攻击", FONT_MEDIUM[1], GRAY, BLUE, WHITE)
-    draw_button(surface, pygame.Rect(300, 500, 150, 60), "技能(治疗)", FONT_MEDIUM[1], GRAY, PURPLE, WHITE)
-    draw_button(surface, pygame.Rect(500, 500, 150, 60), "逃跑", FONT_MEDIUM[1], GRAY, GRAY, WHITE)
+    # 敌人剩余时间条
+    if enemy_remaining > 0:
+        bar_width = 100
+        fill_width = (enemy_remaining / BASE_TIME) * bar_width
+        pygame.draw.rect(surface, GRAY, (SCREEN_WIDTH//2 +100, 300, bar_width, 5))
+        pygame.draw.rect(surface, RED, (SCREEN_WIDTH//2 +100, 300, fill_width, 5))
 
+    # 战斗按钮（仅在轮到玩家时可用，但这里不处理逻辑，仅绘制）
+    # 如果当前行动者是玩家，按钮正常颜色；否则变灰
+    current_is_player = (combatants[current_index]["type"] == "player") if combatants else False
+    if current_is_player:
+        btn_attack_color = BLUE
+        btn_skill_color = PURPLE
+    else:
+        btn_attack_color = GRAY
+        btn_skill_color = GRAY
+
+    draw_button(surface, pygame.Rect(100, 500, 150, 60), "攻击", FONT_MEDIUM[1], GRAY, btn_attack_color, WHITE)
+    draw_button(surface, pygame.Rect(300, 500, 150, 60), "技能(治疗)", FONT_MEDIUM[1], GRAY, btn_skill_color, WHITE)
+    draw_button(surface, pygame.Rect(500, 500, 150, 60), "逃跑", FONT_MEDIUM[1], GRAY, GRAY, WHITE)
 
 # 绘制养成界面（从 upgrade.py 调用）
 def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
@@ -175,6 +221,7 @@ def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
         draw_text(surface, f"HP: {role['hp']}/{role['max_hp']}", FONT_MEDIUM[1], GREEN, 650, y); y += 40
         draw_text(surface, f"攻击: {role['atk']}", FONT_MEDIUM[1], RED, 650, y); y += 40
         draw_text(surface, f"耐力: {role['stamina']}", FONT_MEDIUM[1], BLUE, 650, y); y += 40
+        draw_text(surface, f"速度: {role['speed']}", FONT_MEDIUM[1], CYAN, 650, y); y += 40
         draw_text(surface, "技能：", FONT_MEDIUM[1], WHITE, 400, 480)
         sy = 520
         for sk in role["skills"]:
@@ -196,7 +243,7 @@ def draw_upgrade(surface, player_team, selected_role_index, inventory, scroll):
     #返回
     draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回主菜单", FONT_MEDIUM[1], GRAY, RED, WHITE)
 
-# 绘制抽卡界面（从 gacha.py 调用）
+# 绘制抽卡界面
 def draw_gacha(surface, gacha_result=None):
     draw_text(surface, "抽卡系统", FONT_TITLE[1], ORANGE, SCREEN_WIDTH//2, 120)
     # 抽卡按钮
@@ -204,7 +251,7 @@ def draw_gacha(surface, gacha_result=None):
     if gacha_result:
         draw_text(surface, f"抽到 {gacha_result['rarity']} 角色: {gacha_result['name']}", FONT_BIG[1], gacha_result["color"], SCREEN_WIDTH//2, 500)
     # 返回按钮（左下角）
-    draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回选关", FONT_MEDIUM[1], GRAY, RED, WHITE)
+    draw_button(surface, pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT), "返回主菜单", FONT_MEDIUM[1], GRAY, RED, WHITE)
 
 #绘制关卡确认对话框
 def draw_confirm(surface, level):
@@ -228,3 +275,50 @@ def draw_confirm(surface, level):
     # 冲鸭按钮
     go_rect = pygame.Rect(SCREEN_WIDTH//2 + 20, btn_y, btn_w, btn_h)
     draw_button(surface, go_rect, "出发！", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
+
+#绘制失败提示画面
+def draw_lose(surface):
+    # 半透明遮罩
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    overlay.set_alpha(180)
+    overlay.fill(BLACK)
+    surface.blit(overlay, (0, 0))
+    # 对话框背景
+    dialog_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, SCREEN_HEIGHT//2 - 100, 400, 200)
+    pygame.draw.rect(surface, DARK_GRAY, dialog_rect, border_radius=10)
+    pygame.draw.rect(surface, WHITE, dialog_rect, 3, border_radius=10)
+    # 文字
+    draw_text(surface, "你失败了！", FONT_BIG[1], RED, SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 40)
+    # 确认按钮
+    btn_w, btn_h = 120, 50
+    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
+    draw_button(surface, btn_rect, "确认", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
+
+#绘制胜利界面
+def draw_win(surface, reward):
+    # 半透明遮罩
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    overlay.set_alpha(180)
+    overlay.fill(BLACK)
+    surface.blit(overlay, (0, 0))
+    # 对话框背景
+    dialog_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, SCREEN_HEIGHT//2 - 100, 400, 200)
+    pygame.draw.rect(surface, DARK_GRAY, dialog_rect, border_radius=10)
+    pygame.draw.rect(surface, WHITE, dialog_rect, 3, border_radius=10)
+    
+    # 标题
+    draw_text(surface, "战斗胜利！", FONT_BIG[1], YELLOW, SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 40)
+    
+    # 显示奖励（如果有）
+    if reward:
+        y = SCREEN_HEIGHT//2
+        draw_text(surface, f"获得金币: {reward.get('gold', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH//2, y)
+        y += 40
+        draw_text(surface, f"获得经验书: {reward.get('exp_book', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH//2, y)
+        y += 40
+        draw_text(surface, f"获得技能书: {reward.get('skill_book', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH//2, y)
+    
+    # 确认按钮
+    btn_w, btn_h = 120, 50
+    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
+    draw_button(surface, btn_rect, "确认", FONT_MEDIUM[1], GRAY, GREEN, WHITE)

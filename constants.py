@@ -1,8 +1,11 @@
 # constants.py - 所有常量定义
 
-SCREEN_WIDTH = 1024
-SCREEN_HEIGHT = 768
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 FPS = 60
+# 主界面右下角按钮尺寸
+MENU_BTN_WIDTH = 180
+MENU_BTN_HEIGHT = 60
 
 # 颜色
 WHITE = (255, 255, 255)
@@ -30,6 +33,8 @@ STATE_WORLD = 4    #大世界界面
 STATE_UPGRADE = 5 #角色养成界面
 STATE_GACHA = 6  # 新增抽卡界面、
 STATE_CONFIRM = 7  # 关卡确认界面
+STATE_LOSE = 8     #失败界面
+STATE_WIN = 9   # 胜利界面
 
 # 按钮大小
 BTN_WIDTH = 450
@@ -57,6 +62,7 @@ ROLES = [
         "max_hp": 150,
         "atk": 30,
         "stamina": 80,
+        "speed": 50,         
         "rarity": "R",
         "skills": [
             {"name": "重击", "level": 1, "proficiency": 0, "prof_to_next": 50}
@@ -64,3 +70,10 @@ ROLES = [
         "color": RED
     }
 ]
+
+# 回合制战斗相关
+BASE_TIME = 10000          # 计算剩余时间的基数
+
+# 动画相关
+ANIMATION_SPEED = 10       # 移动速度（像素/帧）
+ANIMATION_DISTANCE = 30    # 攻击时向前移动的距离
