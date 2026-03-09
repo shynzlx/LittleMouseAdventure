@@ -51,7 +51,7 @@ RARITY_PROB = {
 GOLD_POS_X = SCREEN_WIDTH - 200
 GOLD_POS_Y = 20
 
-#初始角色
+'''#初始角色
 ROLES = [
     {
         "name": "一般鼠鼠",
@@ -70,7 +70,7 @@ ROLES = [
         "color": RED
     }
 ]
-
+'''
 # 回合制战斗相关
 BASE_TIME = 10000          # 计算剩余时间的基数
 

@@ -15,6 +15,7 @@ from gacha import *
 from levels import *
 from save import *
 from inventory import get_reward_for_level
+from characters import load_all_roles
 
 # 新增导入：回合制战斗相关函数和常量
 from battle import initialize_combatants, get_next_attacker, enemy_attack, reset_team_hp
@@ -25,7 +26,7 @@ pygame.init()
 
 # 创建窗口
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("冒险游戏")
+pygame.display.set_caption("鼠鼠大冒险")
 
 # 时钟控制帧率
 clock = pygame.time.Clock()
@@ -78,28 +79,20 @@ def update_music(state):
 # 加载存档（启动时自动执行）
 player_team, inventory, current_level = load_game()
 
-# 如果加载失败或队伍为空，给默认初始鼠鼠
-if not player_team:
-    player_team = [
-        {
-            "name": "一般鼠鼠",
-            "level": 1,
-            "exp": 0,
-            "exp_to_next": 100,
-            "hp": 150,
-            "max_hp": 150,
-            "atk": 30,
-            "stamina": 80,
-            "rarity": "R",
-            "skills": [
-                {"name": "重击", "level": 1, "proficiency": 0, "prof_to_next": 50}
-            ],
-            "color": RED
-        }
-    ]
-    inventory = {"gold": 1000, "exp_book": 0, "skill_book": 0}
-    current_level = 1
-    print("使用默认初始数据（新玩家）")
+# ===== 角色数据补全：确保旧存档中的角色拥有所有基础属性 =====
+role_pool = load_all_roles()                         # 加载所有基础角色
+role_base_map = {role["name"]: role for role in role_pool}  # 建立名称到基础数据的映射
+
+for role in player_team:
+    base = role_base_map.get(role["name"])
+    if base:
+        # 用基础数据补全缺失的字段，保留角色当前的值
+        for key, value in base.items():
+            if key not in role:
+                role[key] = value
+                # 注意：如果新增字段是列表（如 skills），且基础为空，这里直接赋值空列表
+                # 但 skills 在角色成长过程中可能已存在，所以不会覆盖
+# =========================================================
 
 # 为所有角色添加 active 字段（如果没有）
 for i, role in enumerate(player_team):

@@ -4,6 +4,7 @@
 
 import json  # Python 自带的 JSON 工具
 import os    # 检查文件是否存在用
+from characters import load_all_roles   # 导入角色文件
 
 SAVE_FILE = "save.json"  # 存档文件名，就叫 save.json，放在游戏同目录
 
@@ -29,54 +30,30 @@ def save_game(player_team, inventory, current_level):
 
 
 def load_game():
-    """
-    从 save.json 加载游戏数据
-    如果文件不存在，就返回默认值（新玩家）
-    返回三个东西：player_team, inventory, current_level
-    """
-    # 先检查文件存不存在
     if os.path.exists(SAVE_FILE):
-        # 文件存在 → 读取
+        # 有存档：读取存档（保持不变）
         with open(SAVE_FILE, 'r', encoding='utf-8') as file:
             data = json.load(file)
-
-        print("从 save.json 加载了存档！")
-
-        # 取出数据，如果某项没有就用默认值
         player_team = data.get("player_team", [])
         inventory = data.get("inventory", {"gold": 1000, "exp_book": 5, "skill_book": 3})
         current_level = data.get("current_level", 1)
-
         return player_team, inventory, current_level
-
     else:
-        # 文件不存在 → 新玩家，用默认数据
-        print("没有找到存档，使用默认数据开始新游戏")
-
-        # 默认初始数据
-        default_team = [
-            {
-                "name": "一般鼠鼠",
-                "level": 1,
-                "exp": 0,
-                "exp_to_next": 100,
-                "hp": 150,
-                "max_hp": 150,
-                "atk": 30,
-                "stamina": 80,
-                "speed": 50,
-                "rarity": "R",
-                "skills": [
-                    {"name": "重击", "level": 1, "proficiency": 0, "prof_to_next": 50}
-                ],
-                "color": (255, 50, 50)  # RED
-            }
-        ]
-
-        default_inventory = {
-            "gold": 1000,
-            "exp_book": 5,
-            "skill_book": 3
-        }
-
-        return default_team, default_inventory, 1
+        # 无存档：从角色文件创建初始队伍
+        print("没有找到存档，从角色文件创建初始队伍")
+        all_roles = load_all_roles()
+        target_role_name = "警卫鼠鼠"   # 你要的初始角色名称
+        base_role = next((r for r in all_roles if r["name"] == target_role_name), None)
+        
+        if base_role:
+            # 深拷贝基础角色数据
+            initial_role = base_role.copy()
+            initial_role["skills"] = [skill.copy() for skill in initial_role.get("skills", [])]
+            initial_role.setdefault("active", True)      # 默认上阵
+            initial_role.setdefault("speed", initial_role.get("stamina", 50))
+            player_team = [initial_role]
+            print(f"初始角色设为：{target_role_name}")
+        # 初始物资（与之前保持一致）
+        inventory = {"gold": 1000, "exp_book": 5, "skill_book": 3}
+        current_level = 1
+        return player_team, inventory, current_level
