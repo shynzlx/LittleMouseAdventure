@@ -4,7 +4,7 @@ import pygame
 
 from constants import *
 from battle import player_skill, reset_team_hp, get_next_attacker
-from upgrade import use_exp_book, use_skill_book
+from upgrade import use_exp_book, use_skill_book, toggle_active
 from gacha import perform_gacha
 from levels import setup_enemy
 from upgrade import use_exp_book, use_skill_book, toggle_active
@@ -111,6 +111,40 @@ def handle_battle_click(pos, game_state, combatants, current_index, player_team,
 
     # 其他情况
     return game_state, combatants, current_index, skill_points, battle_sub_state, None
+
+def handle_upgrade_click(pos, selected_role_index, player_team, inventory, scroll):
+    """处理养成界面点击"""
+    # 检测返回主菜单按钮
+    menu_rect = pygame.Rect(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT)
+    if menu_rect.collidepoint(pos):
+        return STATE_MENU, selected_role_index
+
+    # 检测角色列表点击（支持滚动）
+    visible_count = 6
+    for i in range(visible_count):
+        actual_idx = scroll + i
+        if actual_idx >= len(player_team):
+            break
+        btn_rect = pygame.Rect(50, 150 + i * 100, 200, 80)
+        if btn_rect.collidepoint(pos):
+            selected_role_index = actual_idx
+
+    # 检测切换上阵按钮
+    toggle_rect = pygame.Rect(600, 550, 180, 60)
+    if toggle_rect.collidepoint(pos):
+        toggle_active(selected_role_index, player_team)
+
+    # 检测经验书按钮
+    exp_rect = pygame.Rect(600, 450, 180, 60)
+    if exp_rect.collidepoint(pos):
+        use_exp_book(selected_role_index, player_team, inventory)
+
+    # 检测技能书按钮
+    skill_rect = pygame.Rect(800, 450, 180, 60)
+    if skill_rect.collidepoint(pos):
+        use_skill_book(selected_role_index, player_team, inventory)
+
+    return STATE_UPGRADE, selected_role_index
 
 def handle_gacha_click(pos, player_team, inventory):
     """处理抽卡界面的点击，返回抽到的角色 或 "back" 表示返回"""
