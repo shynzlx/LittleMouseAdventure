@@ -242,15 +242,19 @@ while running:
     if game_state == STATE_CHALLENGE_BATTLE and combatants and battle_sub_state == BATTLE_STATE_ACTION:
         current = combatants[current_index]
         if current["type"] == "enemy":
-            result = enemy_attack(combatants, current_index, player_team)
-            if result == "lose":
+            # 敌人选择目标（随机选择存活的玩家）
+            alive_players = [c for c in combatants if c["type"] == "player" and c["entity"]["hp"] > 0]
+            if not alive_players:
+                # 没有活着的玩家，直接失败
                 game_state = STATE_LOSE
-            elif result == "win":
-                game_state = STATE_WIN
-                # 发放奖励等...
             else:
-                current_index = get_next_attacker(combatants)
-                anim_frame = 10   # 简单动画（可保留）
+                target = random.choice(alive_players)
+                # 设置动画变量
+                anim_attacker_idx = current_index
+                anim_target_idx = combatants.index(target)  # 找到目标索引
+                anim_phase = 1
+                anim_phase_frame = 0
+                battle_sub_state = BATTLE_STATE_ANIM
     # =========================
 
     # ===== 动画处理 =====
@@ -261,17 +265,25 @@ while running:
         anim_frame -= 1
     # ====================
 
-        # ===== 新增：回合制战斗动画更新 =====
+    # ===== 新增：回合制战斗动画更新 =====
     if game_state == STATE_CHALLENGE_BATTLE and battle_sub_state == BATTLE_STATE_ANIM:
         anim_phase_frame += 1
         if anim_phase_frame >= ANIM_PHASE_FRAMES:
             anim_phase_frame = 0
             anim_phase += 1
-            if anim_phase > 4:   # 动画结束（共4个阶段）
-                # 执行实际攻击
-                result, next_index, new_skill_points = perform_attack(
-                    combatants, anim_attacker_idx, anim_target_idx, current_skill_points)
-                current_skill_points = new_skill_points
+            if anim_phase > 4:
+                # 动画结束，执行实际攻击
+                attacker_type = combatants[anim_attacker_idx]["type"]
+                if attacker_type == "player":
+                    result, next_index, new_skill_points = perform_attack(
+                        combatants, anim_attacker_idx, anim_target_idx, current_skill_points)
+                    current_skill_points = new_skill_points
+                else:  # enemy
+                    # 注意：enemy_attack 接收 (combatants, current_index, player_team)，返回 "lose"/"win"/"continue"
+                    # 需要修改 enemy_attack 使其也返回下一个攻击者索引（类似 perform_attack）
+                    result, next_index = enemy_attack(combatants, anim_attacker_idx, player_team)
+                    # enemy_attack 内部已更新 combatants 和剩余时间，我们需要得到下一个攻击者
+
                 if result == "win":
                     game_state = STATE_WIN
                     reward = get_reward_for_level(current_level)
@@ -282,7 +294,7 @@ while running:
                     game_state = STATE_LOSE
                 else:
                     current_index = next_index
-                # 重置子状态
+                
                 battle_sub_state = BATTLE_STATE_ACTION
                 anim_phase = 0
                 anim_attacker_idx = None

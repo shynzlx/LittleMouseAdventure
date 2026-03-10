@@ -125,14 +125,19 @@ def enemy_attack(combatants, current_index, player_team):
     enemy = combatants[current_index]["entity"]
     alive_team = [r for r in player_team if r["hp"] > 0]
     if not alive_team:
-        return "lose"
+        # 没有活着的玩家，直接失败，但需要清理战斗列表？可能调用 cleanup_combatants
+        cleanup_combatants(combatants)  # 移除死亡玩家（其实都已死亡）
+        return "lose", 0
+
     target = random.choice(alive_team)
     dmg = random.randint(15, 30)
     target["hp"] = max(0, target["hp"] - dmg)
     print(f"{enemy['name']} 攻击 {target['name']}，造成 {dmg} 伤害")
+
     result = cleanup_combatants(combatants)
     if result != "continue":
-        return result
+        return result, 0
+
     # 重新定位敌人索引
     new_current = None
     for i, c in enumerate(combatants):
@@ -140,9 +145,12 @@ def enemy_attack(combatants, current_index, player_team):
             new_current = i
             break
     if new_current is None:
-        return "lose"
+        # 敌人死亡？但 cleanup 时如果敌人死亡应该返回 win，所以不应该到这里
+        return "lose", 0
+
     update_combatants(combatants, new_current)
-    return "continue"
+    next_index = get_next_attacker(combatants)
+    return "continue", next_index
 
 def reset_team_hp(team):
     """将所有角色的HP回满"""

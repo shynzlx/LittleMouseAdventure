@@ -174,7 +174,7 @@ def draw_turn_order(surface, combatants, current_index, x, y, width=150, entry_h
 
 import formation
 
-def draw_battle(surface, player_team, enemies, current_level, combatants, current_index, 
+def draw_battle(surface, player_team, enemies, current_level, combatants, current_index,
                 anim_offset, skill_points, battle_sub_state, anim_attacker_idx, anim_target_idx, anim_phase, anim_phase_frame):
     draw_text(surface, f"关卡 {current_level} - 战斗！", FONT_BIG[1], YELLOW, SCREEN_WIDTH//2, 50)
     draw_text(surface, f"技能点: {skill_points}", FONT_MEDIUM[1], CYAN, SCREEN_WIDTH - 150, 100)
@@ -218,7 +218,7 @@ def draw_battle(surface, player_team, enemies, current_level, combatants, curren
             start_pos = pos
             target_pos = entity_pos.get(id(target_entity))
             if target_pos:
-                move_vector = (target_pos[0] - start_pos[0] - 160, target_pos[1] - start_pos[1])
+                move_vector = (target_pos[0] - start_pos[0] - 140, target_pos[1] - start_pos[1])
                 if anim_phase == 1:      # 前移
                     progress = anim_phase_frame / ANIM_PHASE_FRAMES
                     offset_x = move_vector[0] * progress
@@ -245,10 +245,10 @@ def draw_battle(surface, player_team, enemies, current_level, combatants, curren
 
         # 绘制名称和HP（保持在原位置，不随角色移动）
         name_color = GRAY if role["hp"] <= 0 else (YELLOW if is_current else WHITE)
-        draw_text(surface, role["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
+        draw_text(surface, role["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 - 20)
         hp_display = max(0, role["hp"])
         hp_text = f"HP: {hp_display}/{role['max_hp']}"
-        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH//2, pos[1] + formation.SLOT_HEIGHT + 5)
+        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 + 20)
 
         if role["hp"] <= 0:
             s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
@@ -262,25 +262,56 @@ def draw_battle(surface, player_team, enemies, current_level, combatants, curren
             pygame.draw.rect(surface, GRAY, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 2)
             continue
 
-        # 找出该敌人在combatants中的索引
+        # 找出该敌人在 combatants 中的信息
         combatant = next((c for c in combatants if c["type"] == "enemy" and c["entity"] is enemy), None)
         is_current = (combatant is not None and combatants[current_index] is combatant)
 
-        # 目标选择高亮（只对活着的敌人高亮）
+        # 判断是否正在动画中且是该敌人（作为攻击者）
+        anim_active = (battle_sub_state == BATTLE_STATE_ANIM and
+                       anim_attacker_idx is not None and
+                       combatants[anim_attacker_idx]["entity"] is enemy)
+
+        # 计算攻击者的移动偏移（与玩家完全相同）
+        offset_x, offset_y = 0, 0
+        if anim_active and anim_target_idx is not None:
+            target_entity = combatants[anim_target_idx]["entity"]
+            start_pos = pos
+            target_pos = entity_pos.get(id(target_entity))
+            if target_pos:
+                move_vector = (target_pos[0] - start_pos[0] + 140, target_pos[1] - start_pos[1])
+                if anim_phase == 1:
+                    progress = anim_phase_frame / ANIM_PHASE_FRAMES
+                    offset_x = move_vector[0] * progress
+                    offset_y = move_vector[1] * progress
+                elif anim_phase == 2:
+                    offset_x = move_vector[0]
+                    offset_y = move_vector[1]
+                elif anim_phase == 3:
+                    progress = 1 - (anim_phase_frame / ANIM_PHASE_FRAMES)
+                    offset_x = move_vector[0] * progress
+                    offset_y = move_vector[1] * progress
+
+        # 目标选择高亮（只高亮活着的敌人）
         if battle_sub_state == BATTLE_STATE_TARGET and enemy["hp"] > 0:
             pygame.draw.rect(surface, YELLOW, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 3)
 
-        img = load_avatar(enemy["name"], size=(80, 120))
-        if img:
-            surface.blit(img, pos)
+        # 选择头像（攻击图片阶段用进攻头像）
+        if anim_active and anim_phase == 2:
+            img = load_attack_avatar(enemy["name"], size=(80, 120))
         else:
-            pygame.draw.rect(surface, RED, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
+            img = load_avatar(enemy["name"], size=(80, 120))
 
+        draw_pos = (pos[0] + offset_x, pos[1] + offset_y)
+        if img:
+            surface.blit(img, draw_pos)
+        else:
+            pygame.draw.rect(surface, RED, (*draw_pos, 80, 120))
+
+        # 绘制名称和HP
         name_color = YELLOW if is_current else RED
-        draw_text(surface, enemy["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
-        hp_display = max(0, enemy["hp"])
-        hp_text = f"HP: {hp_display}/{enemy['max_hp']}"
-        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH//2, pos[1] + formation.SLOT_HEIGHT + 5)
+        draw_text(surface, enemy["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 - 20)
+        hp_text = f"HP: {max(0, enemy['hp'])}/{enemy['max_hp']}"
+        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 + 20)
 
         if enemy["hp"] <= 0:
             s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
