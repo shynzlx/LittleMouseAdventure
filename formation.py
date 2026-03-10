@@ -12,12 +12,12 @@ PLAYER_POSITIONS = [
 
 # 敌方站位：三行两列
 ENEMY_POSITIONS = [
-    (800, 150),   # 第1行第1列
-    (1050, 150),  # 第1行第2列
-    (800, 280),   # 第2行第1列
-    (1050, 280),  # 第2行第2列
-    (800, 410),   # 第3行第1列
-    (1050, 410)   # 第3行第2列
+    (800, 150),   # 站位0
+    (1050, 150),  # 站位1
+    (800, 280),   # 站位2
+    (1050, 280),  # 站位3
+    (800, 410),   # 站位4
+    (1050, 410)   # 站位5
 ]
 
 # 每个站位的宽度和高度
@@ -37,15 +37,34 @@ def get_player_slots(active_team):
             slots.append((None, i, pos))
     return slots
 
-def get_enemy_slots(enemy):
+def get_enemy_slots(enemies):
     """
-    敌方目前只有一个敌人，但为了阵型统一，也返回列表
-    enemy 是单个敌人字典，放在第一个位置，其余为空
+    根据敌人列表中的 slot 字段，返回每个站位对应的敌人。
+    返回列表，每个元素为 (敌人, 站位索引, 坐标)
     """
-    slots = []
-    for i, pos in enumerate(ENEMY_POSITIONS):
-        if i == 0:
-            slots.append((enemy, i, pos))
+    # 初始化所有站位为 None
+    slots = [None] * len(ENEMY_POSITIONS)
+
+    for enemy in enemies:
+        slot_idx = enemy.get("slot")
+        if slot_idx is not None and 0 <= slot_idx < len(slots):
+            # 如果指定站位已被占用，打印警告并跳过（或覆盖？这里选择覆盖）
+            if slots[slot_idx] is not None:
+                print(f"警告：站位 {slot_idx} 已被 {slots[slot_idx]['name']} 占用，{enemy['name']} 将覆盖")
+            slots[slot_idx] = enemy
         else:
-            slots.append((None, i, pos))
-    return slots
+            # 没有指定 slot 或无效，则按顺序分配到第一个空闲站位
+            assigned = False
+            for i in range(len(slots)):
+                if slots[i] is None:
+                    slots[i] = enemy
+                    assigned = True
+                    break
+            if not assigned:
+                print(f"错误：没有空闲站位给敌人 {enemy['name']}，已忽略")
+
+    # 转换为带坐标的列表
+    result = []
+    for i, enemy in enumerate(slots):
+        result.append((enemy, i, ENEMY_POSITIONS[i]))
+    return result

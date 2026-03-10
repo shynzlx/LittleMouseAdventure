@@ -7,7 +7,7 @@ def calculate_remaining_time(speed):
     """根据速度计算初始剩余时间"""
     return BASE_TIME / speed if speed > 0 else BASE_TIME
 
-def initialize_combatants(player_team, enemy):
+def initialize_combatants(player_team, enemies):
     """初始化战斗单位列表，包含所有上阵角色和敌人"""
     combatants = []
     # 添加玩家角色
@@ -21,15 +21,16 @@ def initialize_combatants(player_team, enemy):
             "remaining_time": calculate_remaining_time(speed),
             "slot_index": idx   # 站位索引
         })
-    # 敌人：目前只有一个，固定站位索引0
-    enemy_speed = enemy.get("speed", 30)
-    combatants.append({
-        "type": "enemy",
-        "entity": enemy,
-        "speed": enemy_speed,
-        "remaining_time": calculate_remaining_time(enemy_speed),
-        "slot_index": 0
-    })
+    # 敌人
+    for idx, enemy in enumerate(enemies):
+        enemy_speed = enemy.get("speed", 30)
+        combatants.append({
+            "type": "enemy",
+            "entity": enemy,
+            "speed": enemy_speed,
+            "remaining_time": calculate_remaining_time(enemy_speed),
+            "slot_index": idx
+        })
     return combatants
 
 def update_combatants(combatants, current_index):
@@ -61,41 +62,67 @@ def get_next_attacker(combatants):
             next_index = i
     return next_index
 
-def player_attack(combatants, current_index, enemy, skill_points):
-    """玩家角色攻击敌人"""
+def cleanup_combatants(combatants):
+    """移除所有死亡单位，返回战斗结果"""
+    original_len = len(combatants)
+    combatants[:] = [c for c in combatants if c["entity"]["hp"] > 0]
+    # 检查胜利/失败
+    enemies_alive = any(c["type"] == "enemy" for c in combatants)
+    players_alive = any(c["type"] == "player" for c in combatants)
+    if not enemies_alive:
+        return "win"
+    if not players_alive:
+        return "lose"
+    return "continue"
+
+def perform_attack(combatants, current_index, target_index, skill_points):
+    """
+    执行攻击（在动画结束后调用）
+    返回 (result, next_index, new_skill_points)
+    """
     attacker = combatants[current_index]["entity"]
-    # 计算伤害（沿用原有公式）
-    dmg = random.randint(20, 40) + attacker["atk"]  # 简化：只考虑自身攻击
-    enemy["hp"] -= dmg
-    print(f"{attacker['name']} 攻击！造成 {dmg} 伤害，敌人剩余 HP: {enemy['hp']}")
-    # 攻击后更新剩余时间
-    update_combatants(combatants, current_index)
+    target_entity = combatants[target_index]["entity"]
+    dmg = random.randint(20, 40) + attacker["atk"]
+    target_entity["hp"] -= dmg
+    print(f"{attacker['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
+
+    result = cleanup_combatants(combatants)
+    if result != "continue":
+        return result, 0, skill_points
+
+    # 重新定位攻击者索引（可能因死亡前移）
+    new_current = None
+    for i, c in enumerate(combatants):
+        if c["entity"] is attacker:
+            new_current = i
+            break
+    if new_current is None:
+        return "lose", 0, skill_points
+
+    update_combatants(combatants, new_current)
     skill_points += 1
-    # 返回胜利状态
-    if enemy["hp"] <= 0:
-        return "win", skill_points
-    return "continue", skill_points
+    next_index = get_next_attacker(combatants)
+    return "continue", next_index, skill_points
 
 def player_skill(combatants, current_index, player_team, skill_points):
-    """玩家角色使用技能（治疗）"""
     if skill_points <= 0:
         print("技能点不足！")
-        return "no_skill", skill_points   # 新增状态表示技能点不足    
+        return "no_skill", current_index, skill_points   # 返回原索引，技能点不变
+
     attacker = combatants[current_index]["entity"]
     heal = random.randint(20, 35)
     for role in player_team:
         if role["hp"] > 0:
             role["hp"] = min(role["max_hp"], role["hp"] + heal)
     print(f"{attacker['name']} 使用治疗！全体治疗 {heal} HP")
-    # 治疗后更新剩余时间
+
     update_combatants(combatants, current_index)
     skill_points -= 1
-    return "continue", skill_points
+    next_index = get_next_attacker(combatants)
+    return "continue", next_index, skill_points
 
 def enemy_attack(combatants, current_index, player_team):
-    """敌人攻击玩家队伍"""
     enemy = combatants[current_index]["entity"]
-    # 只选择活着的玩家角色
     alive_team = [r for r in player_team if r["hp"] > 0]
     if not alive_team:
         return "lose"
@@ -103,12 +130,20 @@ def enemy_attack(combatants, current_index, player_team):
     dmg = random.randint(15, 30)
     target["hp"] = max(0, target["hp"] - dmg)
     print(f"{enemy['name']} 攻击 {target['name']}，造成 {dmg} 伤害")
-    # 攻击后更新剩余时间
-    update_combatants(combatants, current_index)
-    # 检查队伍是否全灭
-    if all(r["hp"] <= 0 for r in player_team):
+    result = cleanup_combatants(combatants)
+    if result != "continue":
+        return result
+    # 重新定位敌人索引
+    new_current = None
+    for i, c in enumerate(combatants):
+        if c["entity"] is enemy:
+            new_current = i
+            break
+    if new_current is None:
         return "lose"
+    update_combatants(combatants, new_current)
     return "continue"
+
 def reset_team_hp(team):
     """将所有角色的HP回满"""
     for role in team:

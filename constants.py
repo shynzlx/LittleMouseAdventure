@@ -6,6 +6,7 @@ FPS = 60
 # 主界面右下角按钮尺寸
 MENU_BTN_WIDTH = 180
 MENU_BTN_HEIGHT = 60
+MAX_ACTIVE = 6          # 最大上阵人数
 
 # 颜色
 WHITE = (255, 255, 255)
@@ -51,29 +52,16 @@ RARITY_PROB = {
 GOLD_POS_X = SCREEN_WIDTH - 200
 GOLD_POS_Y = 20
 
-'''#初始角色
-ROLES = [
-    {
-        "name": "一般鼠鼠",
-        "level": 1,
-        "exp": 0,
-        "exp_to_next": 100,
-        "hp": 150,
-        "max_hp": 150,
-        "atk": 30,
-        "stamina": 80,
-        "speed": 50,         
-        "rarity": "R",
-        "skills": [
-            {"name": "重击", "level": 1, "proficiency": 0, "prof_to_next": 50}
-        ],
-        "color": RED
-    }
-]
-'''
 # 回合制战斗相关
 BASE_TIME = 10000          # 计算剩余时间的基数
 
 # 动画相关
 ANIMATION_SPEED = 10       # 移动速度（像素/帧）
-ANIMATION_DISTANCE = 30    # 攻击时向前移动的距离
+ANIMATION_DISTANCE = 25    # 攻击时向前移动的距离
+ANIM_PHASE_FRAMES = 40      # 每阶段帧数
+
+# 战斗子状态
+BATTLE_STATE_ACTION = 0
+BATTLE_STATE_TARGET = 1
+BATTLE_STATE_ANIM = 2
+
