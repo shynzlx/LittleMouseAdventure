@@ -19,6 +19,8 @@ BLUE = (50, 150, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (200, 100, 255)
 ORANGE = (255, 165, 0)
+CYAN = (0, 255, 255)
+
 
 # 字体
 FONT_TITLE = "simhei.ttf", 72, True
