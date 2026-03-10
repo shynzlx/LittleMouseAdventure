@@ -132,21 +132,31 @@ def draw_menu(surface):
     gacha_rect = pygame.Rect(SCREEN_WIDTH - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
     btn4 = button.Button(
         rect=gacha_rect,
-        text="抽卡", font_size=FONT_MEDIUM[1],
+        text="抽卡", font_size=15,
         bg_color=ORANGE, border_color=YELLOW, text_color=WHITE,
         callback=lambda: game.set_state(STATE_GACHA)
     )
     current_buttons.append(btn4)
 
     # 角色养成按钮
-    upgrade_rect = pygame.Rect(gacha_rect.left - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    upgrade_rect = pygame.Rect(gacha_rect.left - MENU_BTN_WIDTH - margin + 25, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
     btn5 = button.Button(
         rect=upgrade_rect,
-        text="角色养成", font_size=FONT_MEDIUM[1],
+        text="角色养成", font_size=15,
         bg_color=PURPLE, border_color=WHITE, text_color=WHITE,
         callback=lambda: game.set_state(STATE_UPGRADE)
     )
     current_buttons.append(btn5)
+
+    # 上阵按钮（放在抽卡和角色养成之间）
+    formation_rect = pygame.Rect(gacha_rect.left - MENU_BTN_WIDTH - margin + 25 - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    btn6 = button.Button(
+        rect=formation_rect,
+        text="上阵", font_size=15,
+        bg_color=GREEN, border_color=WHITE, text_color=WHITE,
+        callback=lambda: game.set_state(STATE_FORMATION)
+    )
+    current_buttons.append(btn6)
 
     # 绘制所有按钮
     for btn in current_buttons:
@@ -564,19 +574,6 @@ def draw_upgrade(surface):
             draw_text(surface, f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']})", FONT_SMALL[1], WHITE, 320, sy)
             sy += 35
 
-        # 切换上阵按钮
-        btn_x = 600
-        btn_y = 550
-        toggle_text = "设为待命" if role.get("active", False) else "设为上阵"
-        toggle_color = RED if role.get("active", False) else GREEN
-        toggle_btn = button.Button(
-            rect=(btn_x, btn_y, 180, 60),
-            text=toggle_text, font_size=FONT_MEDIUM[1],
-            bg_color=GRAY, border_color=toggle_color, text_color=WHITE,
-            callback=lambda: toggle_active(selected_role_index)   # 调用辅助函数
-        )
-        current_buttons.append(toggle_btn)
-
     # 道具按钮
     exp_btn = button.Button(
         rect=(600, 450, 180, 60),
@@ -610,10 +607,6 @@ def draw_upgrade(surface):
 # 养成界面辅助函数
 def select_role(index):
     game.selected_role_index = index
-
-def toggle_active(index):
-    from upgrade import toggle_active as toggle
-    toggle(index, game.player_team)
 
 def use_exp_book(index):
     from upgrade import use_exp_book as use
@@ -834,3 +827,118 @@ def draw_win(surface):
 def draw_world(surface):
     draw_text(surface, "大世界模式", FONT_TITLE[1], BLUE, SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 50)
     draw_text(surface, "（开发中，按 ESC 返回）", FONT_MEDIUM[1], WHITE, SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 50)
+
+# ==================== 上阵界面 ===================
+def draw_formation(surface):
+    """
+    绘制上阵界面（队伍配置）
+    功能：
+    - 左侧显示角色列表（可滚动点击）
+    - 中间显示站位预览框（三行两列）
+    - 底部提示文字
+    - 返回主菜单按钮
+    """
+    global current_buttons
+    current_buttons.clear()
+    # 从 game 模块获取数据
+    player_team = game.player_team
+    scroll = game.formation_scroll          # 需要先在 game.py 中定义
+    selected_idx = game.formation_selected_role_index  # 需要先在 game.py 中定义
+    step = game.formation_step              # 需要先在 game.py 中定义
+    # 绘制背景（纯黑）
+    surface.fill(BLACK)
+    # 绘制标题
+    draw_text(surface, "队伍配置", FONT_TITLE[1], YELLOW, SCREEN_WIDTH//2, 50)
+    # 绘制提示文字
+    if step == 0:
+        hint = "请选择角色"
+    else:
+        hint = "请选择它的站位"
+    draw_text(surface, hint, FONT_BIG[1], CYAN, SCREEN_WIDTH//2, 120)
+    # ========== 左侧角色列表（可滚动） ==========
+    visible_count = 7  # 一次最多显示8个角色
+    start_idx = scroll
+    end_idx = min(start_idx + visible_count, len(player_team))
+    visible_roles = player_team[start_idx:end_idx]
+
+    left_list_x = 50
+    left_list_y = 100
+    slot_width = 200
+    slot_height = 60
+    spacing = 10
+    for i, role in enumerate(visible_roles):
+        actual_idx = start_idx + i
+        y = left_list_y + i * (slot_height + spacing)
+        rect = pygame.Rect(left_list_x, y, slot_width, slot_height)
+        # 背景色：如果当前角色被选中，用角色颜色；否则灰色bg_color = RED if actual_idx == selected_idx else GRAY
+        bg_color = RED if actual_idx == selected_idx else GRAY
+        # 边框色：如果角色已上阵，用黄色；否则白色
+        border_color = YELLOW if role.get("active", False) else WHITE
+        # 创建按钮，点击时调用 select_formation_role(actual_idx)
+        role_btn = button.Button(
+            rect=rect,
+            text=role["name"], font_size=FONT_MEDIUM[1],
+            bg_color=bg_color, border_color=border_color, text_color=WHITE,
+            callback=lambda idx=actual_idx: select_formation_role(idx)
+        )
+        current_buttons.append(role_btn)
+    # 绘制滚动提示
+    if len(player_team) > visible_count:
+        draw_text(surface, f"↑ 滚动 ({start_idx+1}-{end_idx}/{len(player_team)})", FONT_SMALL[1], WHITE, left_list_x + slot_width//2, left_list_y - 20)
+
+    # ========== 中间站位预览框 ==========
+    # 复用战斗站位坐标，但整体向右偏移避免与左侧重叠
+    offset_x = 300
+    # 确保已导入 formation 模块（如果在文件顶部没有导入，需要添加 import formation）
+    preview_slots = formation.PLAYER_POSITIONS
+
+    for i, (x, y) in enumerate(preview_slots):
+        rect = pygame.Rect(x + offset_x, y, formation.SLOT_WIDTH, formation.SLOT_HEIGHT)
+        # 绘制框
+        pygame.draw.rect(surface, GRAY, rect, 2)
+
+        # 获取当前上阵角色（这里使用简单的按顺序填充，后续可改为真正的站位系统）
+        active_team = game.get_active_team()
+        if i < len(active_team) and active_team[i] is not None:
+            role = active_team[i]
+            img = load_avatar(role["name"], size=(formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
+            if img:
+                surface.blit(img, (x + offset_x, y))
+            else:
+                pygame.draw.rect(surface, role["color"], rect)
+            # 绘制角色名（可选）
+            draw_text(surface, role["name"], FONT_SMALL[1], WHITE, rect.centerx, rect.centery - 20)
+        else:
+            # 空位显示编号
+            draw_text(surface, str(i+1), FONT_SMALL[1], GRAY, rect.centerx, rect.centery)
+
+    # ========== 返回主菜单按钮 ==========
+    back_btn = button.Button(
+        rect=(50, SCREEN_HEIGHT-100, BTN_SMALL_WIDTH, BTN_SMALL_HEIGHT),
+        text="返回主菜单", font_size=FONT_MEDIUM[1],
+        bg_color=GRAY, border_color=RED, text_color=WHITE,
+        callback=lambda: game.set_state(STATE_MENU)
+    )
+    current_buttons.append(back_btn)
+
+    # 绘制所有按钮
+    for btn in current_buttons:
+        btn.draw(surface)
+
+# 上阵界面的辅助回调函数
+def select_formation_role(index):
+    """选择角色后进入选择站位阶段"""
+    game.formation_selected_role_index = index
+    game.formation_step = 1
+
+def place_role_to_slot(slot_index):
+    """
+    将选中的角色放置到指定站位
+    slot_index: 0-5 对应六个站位
+    """
+    if game.formation_selected_role_index == -1:
+        return
+    game.assign_role_to_slot(game.formation_selected_role_index, slot_index)
+    game.formation_selected_role_index = -1
+    game.formation_step = 0
+#===========================================上阵界面结束===============================#

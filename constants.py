@@ -4,8 +4,8 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 FPS = 60
 # 主界面右下角按钮尺寸
-MENU_BTN_WIDTH = 180
-MENU_BTN_HEIGHT = 60
+MENU_BTN_WIDTH = 90
+MENU_BTN_HEIGHT = 30
 MAX_ACTIVE = 6          # 最大上阵人数
 
 # 颜色
@@ -38,6 +38,7 @@ STATE_GACHA = 6  # 新增抽卡界面、
 STATE_CONFIRM = 7  # 关卡确认界面
 STATE_LOSE = 8     #失败界面
 STATE_WIN = 9   # 胜利界面
+STATE_FORMATION = 10      # 上阵界面
 
 # 按钮大小
 BTN_WIDTH = 450

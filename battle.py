@@ -12,14 +12,16 @@ def initialize_combatants(player_team, enemies):
     combatants = []
     # 添加玩家角色
     # 玩家角色：按上阵顺序分配站位索引 0~5
-    for idx, role in enumerate(player_team):
+    for slot_idx, role in enumerate(player_team):
+        if role is None:
+            continue
         speed = role.get("speed", role.get("stamina", 50))
         combatants.append({
             "type": "player",
             "entity": role,
             "speed": speed,
             "remaining_time": calculate_remaining_time(speed),
-            "slot_index": idx   # 站位索引
+            "slot_index": slot_idx   # 站位索引
         })
     # 敌人
     for idx, enemy in enumerate(enemies):

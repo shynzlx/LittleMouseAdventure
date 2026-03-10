@@ -38,14 +38,15 @@ while running:
             if event.button in (4, 5):
                 continue
 
-            # 先让UI按钮处理
+            ## 第一步：让UI按钮处理（关键！）
             if handlers.handle_ui_event(event):
-                continue
-
-            # 再处理非按钮点击
+                continue  # 按钮已处理，跳过后续
+            
+            # 第二步：处理非按钮点击（如战斗选目标、上阵站位点击）
             if game.game_state == STATE_CHALLENGE_BATTLE:
                 handlers.handle_battle_target_click(event.pos)
-            # 其他特殊点击（如果有）...
+            elif game.game_state == STATE_FORMATION:
+                handlers.handle_formation_slot_click(event.pos)
 
         elif event.type == pygame.MOUSEWHEEL:     # 鼠标滚轮事件
             if game.game_state == STATE_UPGRADE:       # 仅在养成界面响应滚轮
@@ -53,6 +54,11 @@ while running:
                 visible_count = 6
                 max_scroll = max(0, len(game.player_team) - visible_count)
                 game.upgrade_scroll = max(0, min(game.upgrade_scroll, max_scroll))
+            elif game.game_state == STATE_FORMATION:
+                # 上阵界面滚动角色列表
+                game.formation_scroll -= event.y   # 需要先定义 formation_scroll
+                max_scroll = max(0, len(game.player_team) - 8)  # 假设可见6个
+                game.formation_scroll = max(0, min(game.formation_scroll, max_scroll))
 
     # ESC 返回上一级
     keys = pygame.key.get_pressed()
@@ -119,6 +125,9 @@ while running:
     if game.game_state != game.prev_state:
         music.update_music(game.game_state)
         game.prev_state = game.game_state
+        if game.game_state == STATE_FORMATION:    # 进入上阵界面时重置状态
+            game.reset_formation()
+        game.prev_state = game.game_state
 
     # 清屏
     screen.fill(BLACK)
@@ -142,6 +151,8 @@ while running:
         ui.draw_lose(screen)
     elif game.game_state == STATE_WIN:
         ui.draw_win(screen)
+    elif game.game_state == STATE_FORMATION:   # 注意 STATE_FORMATION 需要在 constants.py 中定义为 10
+        ui.draw_formation(screen)
 
     # 更新屏幕
     pygame.display.flip()

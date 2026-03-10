@@ -49,3 +49,18 @@ def handle_upgrade_list_click(pos):
     """养成界面点击角色列表（非按钮区域？实际上我们已用按钮处理，此函数可保留备用或删除）"""
     # 现在角色列表也是按钮，所以不需要这个函数了，但可以保留以防万一
     pass
+
+def handle_formation_slot_click(pos):
+    """处理上阵界面站位点击"""
+    if game.game_state != STATE_FORMATION or game.formation_step != 1:
+        return False
+
+    # 计算站位区域（与 draw_formation 中一致）
+    offset_x = 300
+    for i, (x, y) in enumerate(formation.PLAYER_POSITIONS):
+        rect = pygame.Rect(x + offset_x, y, formation.SLOT_WIDTH, formation.SLOT_HEIGHT)
+        if rect.collidepoint(pos):
+            # 调用 ui 中的放置函数
+            ui.place_role_to_slot(i)
+            return True
+    return False
