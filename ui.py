@@ -13,7 +13,6 @@ avatar_cache = {}
 current_buttons = []
 
 # ui.py
-
 def load_avatar(role_name, size=(180, 270)):
     """根据角色名称加载头像，返回指定尺寸的图片或 None"""
     filename = avatar_mapper.get_avatar_filename(role_name)
@@ -103,6 +102,7 @@ def draw_menu(surface):
         rect=(btn_x, 250, BTN_WIDTH, BTN_HEIGHT),
         text="闯关模式", font_size=FONT_BIG[1],
         bg_color=GREEN, border_color=GREEN, text_color=WHITE,
+        bg_alpha=80,
         callback=lambda: game.set_state(STATE_CHALLENGE)
     )
     current_buttons.append(btn1)
@@ -112,6 +112,7 @@ def draw_menu(surface):
         rect=(btn_x, 400, BTN_WIDTH, BTN_HEIGHT),
         text="保存游戏", font_size=FONT_BIG[1],
         bg_color=BLUE, border_color=BLUE, text_color=WHITE,
+        bg_alpha=180,
         callback=game.save_game
     )
     current_buttons.append(btn2)
