@@ -35,12 +35,16 @@ Character Progression: Level Up, Learn Skills
 Gacha System: Consume gold coins to randomly obtain new characters
 Save System: Auto-save and manual save
 
-Update TEST_0.3_alpha -2026.3.10
+
+## Update logs ##
+**Update TEST_0.3_alpha -2026.3.10**
 ✨ Optimizations
 
-Combat animation optimization. Combat logic changed. Enemy positions changed from hardcoded → level.py now designs each level's enemy positions individually.
+Combat animation optimization. Combat logic changed. 
 
-** Update TEST_0.2_alpha -2026.3.9**
+Enemy positions changed from hardcoded → level.py now designs each level's enemy positions individually.
+
+**Update TEST_0.2_alpha -2026.3.9**
 
 ⚙️ Combat Logic Adjustments
 
@@ -52,7 +56,7 @@ Optimized main menu UI and combat UI.
 
 Major character file update: Characters are now defined in individual files within the character package.
 
-** Update TEST 0.1.2 alpha -2026.3.8**
+**Update TEST 0.1.2 alpha -2026.3.8**
 
 ✨ New Features
 Deployment System: You can now manage up to 5 characters in your active party. Only deployed characters participate in combat.
