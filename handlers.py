@@ -10,6 +10,8 @@ from levels import setup_enemy
 from upgrade import use_exp_book, use_skill_book, toggle_active
 import formation
 
+win_button_rect = None  
+
 
 def handle_menu_click(pos, game_state):
     btn_x = (SCREEN_WIDTH - BTN_WIDTH) // 2
@@ -185,10 +187,10 @@ def handle_lose_click(pos):
     if btn_rect.collidepoint(pos):
         return True
     return False
+
 def handle_win_click(pos):
     """处理胜利界面点击，点击确认返回 True"""
-    btn_w, btn_h = 120, 50
-    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
-    if btn_rect.collidepoint(pos):
+    global win_button_rect
+    if win_button_rect and win_button_rect.collidepoint(pos):
         return True
     return False

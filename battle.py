@@ -121,31 +121,30 @@ def player_skill(combatants, current_index, player_team, skill_points):
     next_index = get_next_attacker(combatants)
     return "continue", next_index, skill_points
 
-def enemy_attack(combatants, current_index, player_team):
-    enemy = combatants[current_index]["entity"]
-    alive_team = [r for r in player_team if r["hp"] > 0]
-    if not alive_team:
-        # 没有活着的玩家，直接失败，但需要清理战斗列表？可能调用 cleanup_combatants
-        cleanup_combatants(combatants)  # 移除死亡玩家（其实都已死亡）
-        return "lose", 0
-
-    target = random.choice(alive_team)
+def enemy_attack(combatants, attacker_index, target_index):
+    """
+    敌人攻击指定目标
+    返回 (result, next_index)
+    """
+    enemy = combatants[attacker_index]["entity"]
+    target_entity = combatants[target_index]["entity"]
+    
     dmg = random.randint(15, 30)
-    target["hp"] = max(0, target["hp"] - dmg)
-    print(f"{enemy['name']} 攻击 {target['name']}，造成 {dmg} 伤害")
+    target_entity["hp"] = max(0, target_entity["hp"] - dmg)
+    print(f"{enemy['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
 
     result = cleanup_combatants(combatants)
     if result != "continue":
         return result, 0
 
-    # 重新定位敌人索引
+    # 重新定位敌人索引（可能因死亡前移）
     new_current = None
     for i, c in enumerate(combatants):
         if c["entity"] is enemy:
             new_current = i
             break
     if new_current is None:
-        # 敌人死亡？但 cleanup 时如果敌人死亡应该返回 win，所以不应该到这里
+        # 如果敌人死亡（理论上不会到这里，因为如果敌人死亡，result 应该是 "win" 或 "lose"）
         return "lose", 0
 
     update_combatants(combatants, new_current)

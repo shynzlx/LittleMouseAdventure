@@ -279,11 +279,7 @@ while running:
                         combatants, anim_attacker_idx, anim_target_idx, current_skill_points)
                     current_skill_points = new_skill_points
                 else:  # enemy
-                    # 注意：enemy_attack 接收 (combatants, current_index, player_team)，返回 "lose"/"win"/"continue"
-                    # 需要修改 enemy_attack 使其也返回下一个攻击者索引（类似 perform_attack）
-                    result, next_index = enemy_attack(combatants, anim_attacker_idx, player_team)
-                    # enemy_attack 内部已更新 combatants 和剩余时间，我们需要得到下一个攻击者
-
+                    result, next_index = enemy_attack(combatants, anim_attacker_idx, anim_target_idx)
                 if result == "win":
                     game_state = STATE_WIN
                     reward = get_reward_for_level(current_level)

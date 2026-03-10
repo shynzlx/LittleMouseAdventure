@@ -460,30 +460,57 @@ def draw_lose(surface):
 
 #绘制胜利界面
 def draw_win(surface, reward):
+    import handlers   # 导入handlers以存储按钮位置
+
+    # 收集奖励文本行
+    reward_lines = []
+    if reward:
+        reward_lines.append(f"获得金币: {reward.get('gold', 0)}")
+        reward_lines.append(f"获得经验书: {reward.get('exp_book', 0)}")
+        reward_lines.append(f"获得技能书: {reward.get('skill_book', 0)}")
+    line_count = len(reward_lines)
+
+    # 基本尺寸设置
+    title_height = 60          # 标题占用的高度
+    line_height = 40           # 每行奖励文本的高度
+    button_height = 50         # 按钮高度
+    spacing = 20               # 间距
+
+    # 计算对话框总高度
+    dialog_height = title_height + button_height + spacing * 3 + line_count * line_height
+    if dialog_height < 300:    # 最小高度
+        dialog_height = 300
+
+    # 对话框位置（水平居中，垂直居中）
+    dialog_width = 400
+    dialog_x = SCREEN_WIDTH // 2 - dialog_width // 2
+    dialog_y = SCREEN_HEIGHT // 2 - dialog_height // 2
+    dialog_rect = pygame.Rect(dialog_x, dialog_y, dialog_width, dialog_height)
+
     # 半透明遮罩
     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     overlay.set_alpha(180)
     overlay.fill(BLACK)
     surface.blit(overlay, (0, 0))
-    # 对话框背景
-    dialog_rect = pygame.Rect(SCREEN_WIDTH//2 - 200, SCREEN_HEIGHT//2 - 100, 400, 200)
+
+    # 绘制对话框背景
     pygame.draw.rect(surface, DARK_GRAY, dialog_rect, border_radius=10)
     pygame.draw.rect(surface, WHITE, dialog_rect, 3, border_radius=10)
-    
-    # 标题
-    draw_text(surface, "战斗胜利！", FONT_BIG[1], YELLOW, SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 40)
-    
-    # 显示奖励（如果有）
-    if reward:
-        y = SCREEN_HEIGHT//2
-        draw_text(surface, f"获得金币: {reward.get('gold', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH//2, y)
-        y += 40
-        draw_text(surface, f"获得经验书: {reward.get('exp_book', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH//2, y)
-        y += 40
-        draw_text(surface, f"获得技能书: {reward.get('skill_book', 0)}", FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH//2, y)
-    
-    # 确认按钮
-    btn_w, btn_h = 120, 50
-    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, SCREEN_HEIGHT//2 + 20, btn_w, btn_h)
+
+    # 绘制标题（对话框顶部）
+    title_y = dialog_y + spacing + title_height // 2
+    draw_text(surface, "战斗胜利！", FONT_BIG[1], YELLOW, SCREEN_WIDTH // 2, title_y)
+
+    # 绘制奖励文本（标题下方）
+    current_y = title_y + title_height // 2 + spacing
+    for line in reward_lines:
+        draw_text(surface, line, FONT_MEDIUM[1], YELLOW, SCREEN_WIDTH // 2, current_y)
+        current_y += line_height
+
+    # 绘制确认按钮（对话框底部）
+    btn_y = dialog_y + dialog_height - button_height - spacing
+    btn_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, btn_y, 120, 50)
     draw_button(surface, btn_rect, "确认", FONT_MEDIUM[1], GRAY, GREEN, WHITE)
 
+    # 存储按钮位置供点击检测
+    handlers.win_button_rect = btn_rect
