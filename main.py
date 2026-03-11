@@ -51,15 +51,15 @@ while running:
         elif event.type == pygame.MOUSEWHEEL:     # 鼠标滚轮事件
             if game.game_state == STATE_UPGRADE:       # 仅在养成界面响应滚轮
                 game.upgrade_scroll -= event.y
-                visible_count = 6
+                visible_count = 7  # 养成界面一次显示7个
                 max_scroll = max(0, len(game.player_team) - visible_count)
                 game.upgrade_scroll = max(0, min(game.upgrade_scroll, max_scroll))
             elif game.game_state == STATE_FORMATION:
                 # 上阵界面滚动角色列表
-                game.formation_scroll -= event.y   # 需要先定义 formation_scroll
-                max_scroll = max(0, len(game.player_team) - 8)  # 假设可见6个
+                game.formation_scroll -= event.y
+                visible_count = 7  # 上阵界面一次显示7个
+                max_scroll = max(0, len(game.player_team) - visible_count)
                 game.formation_scroll = max(0, min(game.formation_scroll, max_scroll))
-
     # ESC 返回上一级
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:
@@ -119,7 +119,8 @@ while running:
                 game.battle_sub_state = BATTLE_STATE_ACTION
                 game.anim_phase = 0
                 game.anim_attacker_idx = None
-                game.anim_target_idx = None
+                game.anim_target_idx = None                
+    game.update_damage_numbers()   # 更新伤害数字动画
 
     # ===== 检测状态变化并更新音乐 =====
     if game.game_state != game.prev_state:

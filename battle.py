@@ -2,6 +2,9 @@
 
 import random
 from constants import *
+import game
+import formation
+
 
 def calculate_remaining_time(speed):
     """根据速度计算初始剩余时间"""
@@ -87,7 +90,16 @@ def perform_attack(combatants, current_index, target_index, skill_points):
     dmg = random.randint(20, 40) + attacker["atk"]
     target_entity["hp"] -= dmg
     print(f"{attacker['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
-
+    # 添加伤害数字
+    target_type = combatants[target_index]["type"]
+    slot_idx = combatants[target_index]["slot_index"]
+    if target_type == "player":
+        pos = formation.PLAYER_POSITIONS[slot_idx]
+        pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
+    else:
+        pos = formation.ENEMY_POSITIONS[slot_idx]
+        pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
+    game.add_damage_number(pos, dmg)
     result = cleanup_combatants(combatants)
     if result != "continue":
         return result, 0, skill_points
@@ -134,6 +146,16 @@ def enemy_attack(combatants, attacker_index, target_index):
     dmg = random.randint(15, 30)
     target_entity["hp"] = max(0, target_entity["hp"] - dmg)
     print(f"{enemy['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
+    # 添加伤害数字
+    target_type = combatants[target_index]["type"]
+    slot_idx = combatants[target_index]["slot_index"]
+    if target_type == "player":
+        pos = formation.PLAYER_POSITIONS[slot_idx]
+        pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
+    else:
+        pos = formation.ENEMY_POSITIONS[slot_idx]
+        pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
+    game.add_damage_number(pos, dmg)
 
     result = cleanup_combatants(combatants)
     if result != "continue":

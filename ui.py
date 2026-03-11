@@ -149,7 +149,7 @@ def draw_menu(surface):
     current_buttons.append(btn5)
 
     # 上阵按钮（放在抽卡和角色养成之间）
-    formation_rect = pygame.Rect(gacha_rect.left - MENU_BTN_WIDTH - margin + 25 - MENU_BTN_WIDTH - margin, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    formation_rect = pygame.Rect(upgrade_rect.left - MENU_BTN_WIDTH - margin + 25, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
     btn6 = button.Button(
         rect=formation_rect,
         text="上阵", font_size=15,
@@ -276,7 +276,6 @@ def draw_turn_order(surface, combatants, current_index, x, y, width=150, entry_h
 
 # ui.py - 重写 draw_battle 函数
 import formation
-
 def draw_battle(surface):
     global current_buttons
     current_buttons.clear()
@@ -435,7 +434,19 @@ def draw_battle(surface):
             s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
             s.set_alpha(128)
             s.fill(GRAY)
-            surface.blit(s, pos)
+            surface.blit(s, pos)    # 绘制伤害数字
+
+    for d in game.damage_numbers:
+        x, y = d["pos"]
+        y += d["offset_y"]
+        # 根据帧数计算透明度
+        alpha = 255 - 0.5 * int(255 * d["frame"] / d["max_frame"])
+        # 创建字体并渲染数字
+        font = pygame.font.Font(FONT_MEDIUM[0], FONT_MEDIUM[1])
+        text_surf = font.render(f"-{d['value']}", True, RED)
+        text_surf.set_alpha(alpha)
+        text_rect = text_surf.get_rect(center=(x, y + 50))
+        surface.blit(text_surf, text_rect)
 
     # 绘制战斗按钮（作为按钮对象）
     margin = 20
@@ -508,6 +519,7 @@ def on_run_click():
 
 
 # 绘制养成界面（从 upgrade.py 调用）
+# 绘制养成界面（从 upgrade.py 调用）
 def draw_upgrade(surface):
     global current_buttons
     current_buttons.clear()
@@ -521,35 +533,42 @@ def draw_upgrade(surface):
     draw_text(surface, "角色养成", FONT_TITLE[1], YELLOW, SCREEN_WIDTH//2, 60)
 
     # 计算可见角色范围
-    visible_count = 6  # 一次最多显示6个
+    visible_count = 7  # 一次最多显示7个（与上阵界面一致）
     start_idx = scroll
     end_idx = min(start_idx + visible_count, len(player_team))
     visible_roles = player_team[start_idx:end_idx]
 
-    # 绘制角色列表（左侧）
-    y = 150
+    # 绘制角色列表（左侧）- 使用与上阵界面相同的样式
+    left_list_x = 50
+    left_list_y = 100
+    slot_width = 200
+    slot_height = 60
+    spacing = 10
+
+    y = left_list_y
     for i, role in enumerate(visible_roles):
-        actual_idx = start_idx + i  # 实际在 player_team 中的索引
-        # 按钮背景色：选中时用角色颜色，否则灰色
-        color = role["color"] if actual_idx == selected_role_index else GRAY
-        # 按钮边框：如果角色上阵，边框用金色，否则白色
+        actual_idx = start_idx + i
+        rect = pygame.Rect(left_list_x, y, slot_width, slot_height)
+
+        # 背景色：选中时为红色，否则灰色
+        bg_color = RED if actual_idx == selected_role_index else GRAY
+        # 边框色：如果角色已上阵，用黄色；否则白色
         border_color = YELLOW if role.get("active", False) else WHITE
-        # 创建角色按钮
-        btn_rect = pygame.Rect(50, y, 200, 80)
+
         role_btn = button.Button(
-            rect=btn_rect,
+            rect=rect,
             text=role["name"], font_size=FONT_MEDIUM[1],
-            bg_color=color, border_color=border_color, text_color=WHITE,
-            callback=lambda idx=actual_idx: select_role(idx)   # 使用闭包传递索引
+            bg_color=bg_color, border_color=border_color, text_color=WHITE,
+            callback=lambda idx=actual_idx: select_role(idx)
         )
         current_buttons.append(role_btn)
-        y += 100
+        y += slot_height + spacing
 
     # 绘制滚动提示（如果有多页）
     if len(player_team) > visible_count:
-        draw_text(surface, f"↑ 滚动查看 ({start_idx+1}-{end_idx}/{len(player_team)})", FONT_SMALL[1], RED, 150, 550)
+        draw_text(surface, f"↑ 滚动查看 ({start_idx+1}-{end_idx}/{len(player_team)})", FONT_SMALL[1], RED, left_list_x + slot_width//2, left_list_y - 20)
 
-    # 详细信息（右侧）
+    # 详细信息（右侧）- 以下代码保持不变
     if player_team:
         role = player_team[selected_role_index]
         # 尝试加载头像
@@ -856,7 +875,7 @@ def draw_formation(surface):
         hint = "请选择它的站位"
     draw_text(surface, hint, FONT_BIG[1], CYAN, SCREEN_WIDTH//2, 120)
     # ========== 左侧角色列表（可滚动） ==========
-    visible_count = 7  # 一次最多显示8个角色
+    visible_count = 7  # 一次最多显示7个角色
     start_idx = scroll
     end_idx = min(start_idx + visible_count, len(player_team))
     visible_roles = player_team[start_idx:end_idx]

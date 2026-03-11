@@ -52,15 +52,25 @@ def handle_upgrade_list_click(pos):
 
 def handle_formation_slot_click(pos):
     """处理上阵界面站位点击"""
-    if game.game_state != STATE_FORMATION or game.formation_step != 1:
+    if game.game_state != STATE_FORMATION:
         return False
 
     # 计算站位区域（与 draw_formation 中一致）
     offset_x = 300
+    # 获取当前上阵阵容
+    active_team = game.get_active_team()
     for i, (x, y) in enumerate(formation.PLAYER_POSITIONS):
         rect = pygame.Rect(x + offset_x, y, formation.SLOT_WIDTH, formation.SLOT_HEIGHT)
         if rect.collidepoint(pos):
-            # 调用 ui 中的放置函数
-            ui.place_role_to_slot(i)
-            return True
+            # 判断该格子是否有角色
+            if active_team[i] is not None:
+                # 有角色 -> 下阵
+                game.remove_role_from_slot(i)
+                # 刷新界面（无需额外操作，下次绘制自动更新）
+                return True
+            else:
+                # 空位，且处于选择站位阶段且有选中角色
+                if game.formation_step == 1 and game.formation_selected_role_index != -1:
+                    ui.place_role_to_slot(i)
+                    return True
     return False

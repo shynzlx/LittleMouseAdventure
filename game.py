@@ -18,6 +18,7 @@ gacha_result = None              # 抽卡结果
 upgrade_scroll = 0               # 养成界面滚动偏移
 confirm_level = 1                # 待确认的关卡
 current_skill_points = 0         # 战斗技能点
+damage_numbers = []              # 伤害数字动画列表
 
 # 战斗相关变量
 combatants = []                  # 战斗单位列表
@@ -119,6 +120,15 @@ def assign_role_to_slot(role_index, slot):
     # 设置新角色的槽位和 active
     role["slot"] = slot
     role["active"] = True
+
+def remove_role_from_slot(slot):
+    """将指定槽位的角色下阵"""
+    for role in player_team:
+        if role.get("slot") == slot:
+            role["slot"] = -1
+            role["active"] = False
+            return True
+    return False
     
 def save_game():
     """保存游戏（调用 save 模块）"""
@@ -130,3 +140,25 @@ def add_reward(reward):
     global inventory
     for key, value in reward.items():
         inventory[key] = inventory.get(key, 0) + value
+
+def add_damage_number(pos, value):
+    """添加一个伤害数字动画"""
+    global damage_numbers
+    damage_numbers.append({
+        "pos": pos,
+        "value": value,
+        "frame": 0,
+        "max_frame": 20,      # 动画总帧数
+        "offset_y": 0
+    })
+
+def update_damage_numbers():
+    """更新伤害数字动画，返回是否还有活跃的数字"""
+    global damage_numbers
+    for d in damage_numbers[:]:  # 遍历副本以便删除
+        d["frame"] += 1
+        # 向上移动，每帧减少 offset_y（向上为负）
+        d["offset_y"] = -d["frame"] * 1  # 每帧向上1像素
+        if d["frame"] >= d["max_frame"]:
+            damage_numbers.remove(d)
+    return len(damage_numbers) > 0
