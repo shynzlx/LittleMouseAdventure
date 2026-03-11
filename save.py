@@ -51,6 +51,7 @@ def load_game():
             initial_role["skills"] = [skill.copy() for skill in initial_role.get("skills", [])]
             initial_role.setdefault("active", True)      # 默认上阵
             initial_role.setdefault("speed", initial_role.get("stamina", 50))
+            initial_role.setdefault("slot", 0) 
             player_team = [initial_role]
             print(f"初始角色设为：{target_role_name}")
         # 初始物资（与之前保持一致）

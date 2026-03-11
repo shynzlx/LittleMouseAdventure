@@ -20,6 +20,11 @@ confirm_level = 1                # 待确认的关卡
 current_skill_points = 0         # 战斗技能点
 damage_numbers = []              # 伤害数字动画列表
 
+# 技能目标选择
+target_selection_mode = False      # 是否处于选择目标模式
+pending_skill = None               # 待释放的技能信息（技能字典）
+selectable_targets = []            # 可选目标的索引列表（根据技能类型决定是 player_team 索引还是敌人索引）
+
 # 战斗相关变量
 combatants = []                  # 战斗单位列表
 current_index = 0                # 当前行动者索引
@@ -29,6 +34,9 @@ anim_target_idx = None           # 目标索引
 anim_phase = 0                   # 动画阶段
 anim_phase_frame = 0             # 动画帧计数
 anim_frame = 0                   # 旧版动画帧（可能废弃，但保留）
+anim_skill = None                # 当前动画对应的技能字典
+anim_skill_target_idx = None     # 技能目标在 player_team 或 enemies 中的索引
+anim_is_skill = False            # 当前动画是否为技能（用于区分头像）
 
 # 上阵界面相关
 formation_selected_role_index = -1      # 当前选中的角色在 player_team 中的索引，-1表示未选中
@@ -61,25 +69,13 @@ def init_game():
         if "active" not in role:
             role["active"] = (i < MAX_ACTIVE)
 
-    # 为所有角色添加 speed 字段（如果没有）
-    for role in player_team:
-        if "speed" not in role:
-            role["speed"] = role.get("stamina", 50)
-    
-     # 为所有角色添加 slot 字段（如果没有），-1表示未上阵
+    # 为所有角色添加 slot 字段（如果没有），-1表示未上阵
+    # 并根据 slot 设置 active 字段
     for role in player_team:
         if "slot" not in role:
             role["slot"] = -1
-
-    # 根据旧的 active 字段初始化 slot（兼容旧存档）
-    next_slot = 0
-    for role in player_team:
-        if role.get("active", False):
-            if next_slot < MAX_ACTIVE:
-                role["slot"] = next_slot
-                next_slot += 1
-            else:
-                role["active"] = False  # 超过上限的设为False
+        # 根据 slot 确定上阵状态
+        role["active"] = (0 <= role["slot"] < MAX_ACTIVE)
 
 # ----- 状态修改函数 -----
 def set_state(new_state):
@@ -141,24 +137,32 @@ def add_reward(reward):
     for key, value in reward.items():
         inventory[key] = inventory.get(key, 0) + value
 
-def add_damage_number(pos, value):
-    """添加一个伤害数字动画"""
-    global damage_numbers
+def add_damage_number(pos, value, color=RED):
     damage_numbers.append({
         "pos": pos,
         "value": value,
+        "color": color,
         "frame": 0,
-        "max_frame": 20,      # 动画总帧数
+        "max_frame": 20,
         "offset_y": 0
     })
 
 def update_damage_numbers():
     """更新伤害数字动画，返回是否还有活跃的数字"""
     global damage_numbers
-    for d in damage_numbers[:]:  # 遍历副本以便删除
+    from constants import FONT_MEDIUM
+    import pygame
+    font = pygame.font.Font(FONT_MEDIUM[0], FONT_MEDIUM[1])
+
+    for d in damage_numbers[:]:
+        color = d["color"]
+        # 根据颜色判断符号：绿色为治疗（+），其他为伤害（-）
+        sign = "-"
+        if color == GREEN:
+            sign = "+"
+        text_surf = font.render(f"{sign}{d['value']}", True, color)
         d["frame"] += 1
-        # 向上移动，每帧减少 offset_y（向上为负）
-        d["offset_y"] = -d["frame"] * 1  # 每帧向上1像素
+        d["offset_y"] = -d["frame"] * 1  # 向上移动
         if d["frame"] >= d["max_frame"]:
             damage_numbers.remove(d)
     return len(damage_numbers) > 0

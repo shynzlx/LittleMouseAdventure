@@ -30,6 +30,15 @@ ENEMY_ATTACK_AVATAR_MAP = {
     "哥布林": "enemy/goblin_attack.png"
 }
 
+#技能映射
+SKILL_AVATAR_MAP = {
+    "警卫鼠鼠": "guard_mouse_skill.png",
+    "短剑鼠鼠": "sword_mouse_skill.png",
+    "盾牌鼠鼠": "shield_mouse_skill.png",
+    "传奇鼠鼠": "legend_mouse_skill.png",
+    # 其他角色
+}
+
 def get_avatar_filename(entity_name):
     """通用获取头像文件名，先查角色，再查敌人"""
     # 先查角色
@@ -45,3 +54,7 @@ def get_attack_avatar_filename(entity_name):
     if filename:
         return filename
     return ENEMY_ATTACK_AVATAR_MAP.get(entity_name)
+
+def get_skill_avatar_filename(entity_name):
+    """根据角色名称返回技能头像文件名"""
+    return SKILL_AVATAR_MAP.get(entity_name)

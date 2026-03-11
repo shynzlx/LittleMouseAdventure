@@ -3,12 +3,11 @@ import pygame
 import ui          # 新增：访问当前按钮列表
 import game        # 新增：可能用到游戏状态
 from constants import *
-from battle import player_skill, reset_team_hp, get_next_attacker
+from battle import reset_team_hp, get_next_attacker, use_skill
 from upgrade import use_exp_book, use_skill_book, toggle_active
 from gacha import perform_gacha
 from levels import setup_enemy
 import formation
-
 def handle_ui_event(event):
     """处理UI按钮事件，返回True表示已处理"""
     for btn in ui.current_buttons:
@@ -17,26 +16,94 @@ def handle_ui_event(event):
     return False
 
 def handle_battle_target_click(pos):
-    """处理战斗中选择目标的点击（非按钮区域）"""
-    if game.game_state != STATE_CHALLENGE_BATTLE or game.battle_sub_state != BATTLE_STATE_TARGET:
+    if game.game_state != STATE_CHALLENGE_BATTLE or not game.target_selection_mode:
         return False
 
-    # 检测点击敌人（只选活着的）
-    slots = formation.get_enemy_slots(game.enemies)
-    for enemy, idx, (x, y) in slots:
-        if enemy is None or enemy["hp"] <= 0:
-            continue
-        rect = pygame.Rect(x, y, formation.SLOT_WIDTH, formation.SLOT_HEIGHT)
-        if rect.collidepoint(pos):
-            target_idx = find_combatant_index_by_entity(game.combatants, enemy)
-            if target_idx is not None:
-                # 设置动画变量
-                game.anim_attacker_idx = game.current_index
-                game.anim_target_idx = target_idx
-                game.anim_phase = 1
-                game.anim_phase_frame = 0
-                game.battle_sub_state = BATTLE_STATE_ANIM
-                return True
+    # ---------- 普通攻击（无 pending_skill）----------
+    if game.pending_skill is None:
+        from formation import get_enemy_slots, SLOT_WIDTH, SLOT_HEIGHT
+        slots = get_enemy_slots(game.enemies)
+        for enemy, slot_idx, (x, y) in slots:
+            if enemy is None or enemy["hp"] <= 0:
+                continue
+            rect = pygame.Rect(x, y, SLOT_WIDTH, SLOT_HEIGHT)
+            if rect.collidepoint(pos):
+                # 找到该敌人在 combatants 中的索引
+                target_idx = find_combatant_index_by_entity(game.combatants, enemy)
+                if target_idx is not None:
+                    # 设置动画
+                    game.anim_is_skill = False
+                    game.anim_attacker_idx = game.current_index
+                    game.anim_target_idx = target_idx
+                    game.anim_phase = 1
+                    game.anim_phase_frame = 0
+                    game.battle_sub_state = BATTLE_STATE_ANIM
+                    # 退出目标选择模式
+                    game.target_selection_mode = False
+                    return True
+        return False
+
+    # ---------- 技能攻击 ----------
+    skill = game.pending_skill
+    if not skill:
+        return False
+
+    if skill["type"] == "heal" and skill["target"] == "single":
+        from formation import get_player_slots, SLOT_WIDTH, SLOT_HEIGHT
+        active_team = game.get_active_team()
+        slots = get_player_slots(active_team)
+        for role, slot_idx, (x, y) in slots:
+            if role is None or role["hp"] <= 0:
+                continue
+            rect = pygame.Rect(x, y, SLOT_WIDTH, SLOT_HEIGHT)
+            if rect.collidepoint(pos):
+                # 找到该角色在 player_team 中的索引
+                target_idx = next((i for i, r in enumerate(game.player_team) if r is role), None)
+                if target_idx is not None:
+                    # 找到该角色在 combatants 中的索引（用于动画目标）
+                    target_combatant_idx = find_combatant_index_by_entity(game.combatants, role)
+                    if target_combatant_idx is None:
+                        continue
+                    # 存储技能信息，准备动画
+                    game.anim_is_skill = True  
+                    game.anim_skill = skill
+                    game.anim_skill_target_idx = target_idx
+                    game.anim_attacker_idx = game.current_index
+                    game.anim_target_idx = target_combatant_idx
+                    game.anim_phase = 1
+                    game.anim_phase_frame = 0
+                    game.battle_sub_state = BATTLE_STATE_ANIM
+                    game.target_selection_mode = False
+                    game.pending_skill = None
+                    return True
+
+    elif skill["type"] == "attack" and skill["target"] == "single":
+        from formation import get_enemy_slots, SLOT_WIDTH, SLOT_HEIGHT
+        slots = get_enemy_slots(game.enemies)
+        for enemy, slot_idx, (x, y) in slots:
+            if enemy is None or enemy["hp"] <= 0:
+                continue
+            rect = pygame.Rect(x, y, SLOT_WIDTH, SLOT_HEIGHT)
+            if rect.collidepoint(pos):
+                # 找到该敌人在 enemies 中的索引
+                target_idx = next((i for i, e in enumerate(game.enemies) if e is enemy), None)
+                if target_idx is not None:
+                    # 找到该敌人在 combatants 中的索引（用于动画目标）
+                    target_combatant_idx = find_combatant_index_by_entity(game.combatants, enemy)
+                    if target_combatant_idx is None:
+                        continue
+                    # 存储技能信息，准备动画
+                    game.anim_is_skill = True
+                    game.anim_skill = skill
+                    game.anim_skill_target_idx = target_idx
+                    game.anim_attacker_idx = game.current_index
+                    game.anim_target_idx = target_combatant_idx
+                    game.anim_phase = 1
+                    game.anim_phase_frame = 0
+                    game.battle_sub_state = BATTLE_STATE_ANIM
+                    game.target_selection_mode = False
+                    game.pending_skill = None
+                    return True
     return False
 
 def find_combatant_index_by_entity(combatants, entity):

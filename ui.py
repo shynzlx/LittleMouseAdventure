@@ -49,6 +49,22 @@ def load_attack_avatar(role_name, size=(180, 270)):
             avatar_cache[cache_key] = None
     return avatar_cache[cache_key]
 
+def load_skill_avatar(role_name, size=(180, 270)):
+    filename = avatar_mapper.get_skill_avatar_filename(role_name)
+    if filename is None:
+        return None
+    full_path = f"assets/avatars/{filename}"
+    cache_key = f"{full_path}_{size[0]}_{size[1]}"
+    if cache_key not in avatar_cache:
+        try:
+            img = pygame.image.load(full_path).convert_alpha()
+            img = pygame.transform.scale(img, size)
+            avatar_cache[cache_key] = img
+        except Exception as e:
+            print(f"技能头像加载失败: {full_path} - {e}")
+            avatar_cache[cache_key] = None
+    return avatar_cache[cache_key]
+
 def get_font(size, bold=False):
     font = pygame.font.Font(FONT_MEDIUM[0], size)
     if bold:
@@ -273,6 +289,34 @@ def draw_turn_order(surface, combatants, current_index, x, y, width=150, entry_h
         # 绘制名称（居中）
         draw_text(surface, name, 20, color, draw_turn_order_x + draw_turn_order_width // 2, current_y)
 
+def on_skill_click():
+    if game.combatants and game.combatants[game.current_index]["type"] == "player":
+        from battle import use_skill
+        result, next_idx, new_sp, need_target, skill_info = use_skill(
+            game.combatants, game.current_index, game.player_team, game.enemies)
+        if need_target:
+            game.target_selection_mode = True
+            game.pending_skill = skill_info
+            # 可选目标列表存储实体对象本身（用于高亮）
+            if skill_info["type"] == "heal":
+                game.selectable_targets = [role for role in game.player_team if role["hp"] > 0]
+            elif skill_info["type"] == "attack":
+                game.selectable_targets = [enemy for enemy in game.enemies if enemy["hp"] > 0]
+        else:
+            game.current_index = next_idx
+            game.current_skill_points = new_sp
+            if result == "win":
+                # 胜利处理（参考原有胜利逻辑）
+                from battle import reset_team_hp
+                reset_team_hp(game.player_team)
+                game.set_state(STATE_WIN)
+            elif result == "lose":
+                game.set_state(STATE_LOSE)
+
+def on_cancel_skill():
+    game.target_selection_mode = False
+    game.pending_skill = None
+    # 无需其他操作，下次绘制时按钮会变回技能
 
 # ui.py - 重写 draw_battle 函数
 import formation
@@ -350,15 +394,21 @@ def draw_battle(surface):
 
         # 选择头像（攻击阶段使用进攻图片）
         if anim_active and anim_phase == 2:
-            img = load_attack_avatar(role["name"], size=(80, 120))
-        else:
+            if game.anim_is_skill:
+                img = load_skill_avatar(role["name"], size=(80, 120))
+            else:
+                img = load_attack_avatar(role["name"], size=(80, 120))
+        else: 
             img = load_avatar(role["name"], size=(80, 120))
-
         draw_pos = (pos[0] + offset_x, pos[1] + offset_y)
         if img:
             surface.blit(img, draw_pos)
         else:
             pygame.draw.rect(surface, role["color"], (*draw_pos, 80, 120))
+
+        # 目标选择高亮（新增，基于 game.target_selection_mode 和实体比较）
+        if game.target_selection_mode and role in game.selectable_targets:
+            pygame.draw.rect(surface, YELLOW, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 5)
 
         # 绘制名称和HP（保持在原位置，不随角色移动）
         name_color = GRAY if role["hp"] <= 0 else (YELLOW if is_current else WHITE)
@@ -408,9 +458,9 @@ def draw_battle(surface):
                     offset_x = move_vector[0] * progress
                     offset_y = move_vector[1] * progress
 
-        # 目标选择高亮（只高亮活着的敌人）
-        if battle_sub_state == BATTLE_STATE_TARGET and enemy["hp"] > 0:
-            pygame.draw.rect(surface, YELLOW, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 3)
+        # 目标选择高亮（替换原有基于 battle_sub_state 的判断，使用新变量）
+        if game.target_selection_mode and enemy in game.selectable_targets:
+            pygame.draw.rect(surface, YELLOW, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 5)
 
         # 选择头像（攻击图片阶段用进攻头像）
         if anim_active and anim_phase == 2:
@@ -434,8 +484,9 @@ def draw_battle(surface):
             s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
             s.set_alpha(128)
             s.fill(GRAY)
-            surface.blit(s, pos)    # 绘制伤害数字
+            surface.blit(s, pos)
 
+    # 绘制伤害数字
     for d in game.damage_numbers:
         x, y = d["pos"]
         y += d["offset_y"]
@@ -443,7 +494,7 @@ def draw_battle(surface):
         alpha = 255 - 0.5 * int(255 * d["frame"] / d["max_frame"])
         # 创建字体并渲染数字
         font = pygame.font.Font(FONT_MEDIUM[0], FONT_MEDIUM[1])
-        text_surf = font.render(f"-{d['value']}", True, RED)
+        text_surf = font.render(f"-{d['value']}", True, d.get("color", RED))
         text_surf.set_alpha(alpha)
         text_rect = text_surf.get_rect(center=(x, y + 50))
         surface.blit(text_surf, text_rect)
@@ -470,13 +521,21 @@ def draw_battle(surface):
     )
     current_buttons.append(attack_btn)
 
-    # 技能按钮
-    skill_btn = button.Button(
-        rect=(x_skill, button_y, btn_width, btn_height),
-        text="技能(治疗)", font_size=FONT_MEDIUM[1],
-        bg_color=GRAY, border_color=btn_skill_color, text_color=WHITE,
-        callback=on_skill_click
-    )
+    # 技能按钮（根据目标模式显示不同文字和回调）
+    if game.target_selection_mode:
+        skill_btn = button.Button(
+            rect=(x_skill, button_y, btn_width, btn_height),
+            text="取消", font_size=FONT_MEDIUM[1],
+            bg_color=GRAY, border_color=RED, text_color=WHITE,
+            callback=on_cancel_skill
+        )
+    else:
+        skill_btn = button.Button(
+            rect=(x_skill, button_y, btn_width, btn_height),
+            text="技能", font_size=FONT_MEDIUM[1],
+            bg_color=GRAY, border_color=btn_skill_color, text_color=WHITE,
+            callback=on_skill_click
+        )
     current_buttons.append(skill_btn)
 
     # 逃跑按钮
@@ -495,22 +554,11 @@ def draw_battle(surface):
 # 战斗按钮的回调函数（定义在ui.py中，以便访问game模块）
 def on_attack_click():
     if game.combatants and game.combatants[game.current_index]["type"] == "player":
-        game.battle_sub_state = BATTLE_STATE_TARGET
-
-def on_skill_click():
-    if game.combatants and game.combatants[game.current_index]["type"] == "player":
-        from battle import player_skill
-        result, new_index, new_skill_points = player_skill(
-            game.combatants, game.current_index, game.player_team, game.current_skill_points)
-        if result == "win":
-            from battle import reset_team_hp
-            reset_team_hp(game.player_team)
-            game.set_state(STATE_WIN)
-        elif result == "no_skill":
-            print("技能点不足！")
-        else:
-            game.current_index = new_index
-            game.current_skill_points = new_skill_points
+        # 进入目标选择模式，pending_skill 设为 None 表示普通攻击
+        game.target_selection_mode = True
+        game.pending_skill = None
+        # 普通攻击的目标是所有存活的敌人实体
+        game.selectable_targets = [c["entity"] for c in game.combatants if c["type"] == "enemy" and c["entity"]["hp"] > 0]
 
 def on_run_click():
     from battle import reset_team_hp

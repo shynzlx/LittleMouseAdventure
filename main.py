@@ -72,40 +72,49 @@ while running:
     if game.game_state == STATE_CHALLENGE_BATTLE and game.combatants and game.battle_sub_state == BATTLE_STATE_ACTION:
         current = game.combatants[game.current_index]
         if current["type"] == "enemy":
-            # 敌人选择目标（随机选择存活的玩家）
-            alive_players = [c for c in game.combatants if c["type"] == "player" and c["entity"]["hp"] > 0]
-            if not alive_players:
-                # 没有活着的玩家，直接失败
+            from battle import calculate_taunt_probabilities  # 确保导入
+            probs = calculate_taunt_probabilities(game.combatants)
+            if not probs:
                 game.set_state(STATE_LOSE)
             else:
-                target = random.choice(alive_players)
+                target_idx = random.choices(list(probs.keys()), weights=list(probs.values()))[0]
                 # 设置动画变量
                 game.anim_attacker_idx = game.current_index
-                game.anim_target_idx = game.combatants.index(target)
+                game.anim_target_idx = target_idx
                 game.anim_phase = 1
                 game.anim_phase_frame = 0
                 game.battle_sub_state = BATTLE_STATE_ANIM
 
     # ===== 动画处理 =====
-    # （原来的 anim_offset 相关代码似乎未使用，保留但可能不需要）
-    # 如果需要，可以类似修改，但这里省略
-
     # ===== 回合制战斗动画更新 =====
+        # ===== 回合制战斗动画更新 =====
     if game.game_state == STATE_CHALLENGE_BATTLE and game.battle_sub_state == BATTLE_STATE_ANIM:
         game.anim_phase_frame += 1
         if game.anim_phase_frame >= ANIM_PHASE_FRAMES:
             game.anim_phase_frame = 0
             game.anim_phase += 1
             if game.anim_phase > 4:
-                # 动画结束，执行实际攻击
-                attacker_type = game.combatants[game.anim_attacker_idx]["type"]
-                if attacker_type == "player":
-                    result, next_index, new_skill_points = perform_attack(
-                        game.combatants, game.anim_attacker_idx, game.anim_target_idx, game.current_skill_points)
+                # 动画结束，执行实际效果
+                if game.anim_skill is not None:
+                    # 技能
+                    from battle import use_skill
+                    result, next_index, new_skill_points, _, _ = use_skill(
+                        game.combatants, game.anim_attacker_idx, game.player_team, game.enemies, game.anim_skill_target_idx)
                     game.current_skill_points = new_skill_points
-                else:  # enemy
-                    result, next_index = enemy_attack(game.combatants, game.anim_attacker_idx, game.anim_target_idx)
+                    # 清空技能动画相关变量
+                    game.anim_skill = None
+                    game.anim_skill_target_idx = None
+                else:
+                    # 普通攻击
+                    attacker_type = game.combatants[game.anim_attacker_idx]["type"]
+                    if attacker_type == "player":
+                        result, next_index, new_skill_points = perform_attack(
+                            game.combatants, game.anim_attacker_idx, game.anim_target_idx, game.current_skill_points)
+                        game.current_skill_points = new_skill_points
+                    else:  # enemy
+                        result, next_index = enemy_attack(game.combatants, game.anim_attacker_idx, game.anim_target_idx)
 
+                # 处理战斗结果
                 if result == "win":
                     reward = get_reward_for_level(game.current_level)
                     game.win_reward = reward
@@ -116,10 +125,12 @@ while running:
                 else:
                     game.current_index = next_index
 
+                # 重置动画状态
                 game.battle_sub_state = BATTLE_STATE_ACTION
                 game.anim_phase = 0
                 game.anim_attacker_idx = None
-                game.anim_target_idx = None                
+                game.anim_target_idx = None
+                game.anim_is_skill = False
     game.update_damage_numbers()   # 更新伤害数字动画
 
     # ===== 检测状态变化并更新音乐 =====
