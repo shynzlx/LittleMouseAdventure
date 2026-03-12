@@ -11,7 +11,19 @@ ROLE_DATA = {
     "max_hp": 100,
     "atk": 20,
     "stamina": 60,
+    "taunt": 1,
     "speed": 50,
-    "skills": [],
+    "skills": [
+        {
+            "name": "精准攻击",
+            "type": "attack",          # 技能类型：heal（治疗）、attack（攻击）、buff（增益）等
+            "target": "single",      # 目标类型：self（自身）、single（单体）、all（全体）
+            "value": 35,             # 基础治疗量/伤害值，也可用公式
+            "description": "对敌方单体造成精确打击！",
+            "level": 1,
+            "proficiency": 0,
+            "prof_to_next": 50
+        }
+    ],
     "color": GRAY,
 }

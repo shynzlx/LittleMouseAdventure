@@ -87,7 +87,6 @@ while running:
 
     # ===== 动画处理 =====
     # ===== 回合制战斗动画更新 =====
-        # ===== 回合制战斗动画更新 =====
     if game.game_state == STATE_CHALLENGE_BATTLE and game.battle_sub_state == BATTLE_STATE_ANIM:
         game.anim_phase_frame += 1
         if game.anim_phase_frame >= ANIM_PHASE_FRAMES:
@@ -131,6 +130,7 @@ while running:
                 game.anim_attacker_idx = None
                 game.anim_target_idx = None
                 game.anim_is_skill = False
+                game.anim_mode = "move" 
     game.update_damage_numbers()   # 更新伤害数字动画
 
     # ===== 检测状态变化并更新音乐 =====

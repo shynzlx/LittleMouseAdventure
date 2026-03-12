@@ -291,27 +291,34 @@ def draw_turn_order(surface, combatants, current_index, x, y, width=150, entry_h
 
 def on_skill_click():
     if game.combatants and game.combatants[game.current_index]["type"] == "player":
-        from battle import use_skill
-        result, next_idx, new_sp, need_target, skill_info = use_skill(
-            game.combatants, game.current_index, game.player_team, game.enemies)
-        if need_target:
+        current_entity = game.combatants[game.current_index]["entity"]
+        skills = current_entity.get("skills")
+        if not skills:
+            print("没有技能")
+            return
+        skill_info = skills[0]  # 取第一个技能
+
+        # 根据技能目标类型处理
+        if skill_info["target"] == "single":
+            # 需要选择目标
             game.target_selection_mode = True
             game.pending_skill = skill_info
-            # 可选目标列表存储实体对象本身（用于高亮）
+            # 设置可选目标列表（实体对象本身）
             if skill_info["type"] == "heal":
                 game.selectable_targets = [role for role in game.player_team if role["hp"] > 0]
             elif skill_info["type"] == "attack":
                 game.selectable_targets = [enemy for enemy in game.enemies if enemy["hp"] > 0]
         else:
-            game.current_index = next_idx
-            game.current_skill_points = new_sp
-            if result == "win":
-                # 胜利处理（参考原有胜利逻辑）
-                from battle import reset_team_hp
-                reset_team_hp(game.player_team)
-                game.set_state(STATE_WIN)
-            elif result == "lose":
-                game.set_state(STATE_LOSE)
+            # 不需要目标的技能（如嘲讽、增益等），直接触发动画
+            game.anim_is_skill = True
+            game.anim_mode = "shake"                 # 使用晃动动画
+            game.anim_skill = skill_info              # 存储技能信息，动画结束后执行
+            game.anim_skill_target_idx = None         # 表示技能不需要目标
+            game.anim_attacker_idx = game.current_index
+            game.anim_target_idx = game.current_index # 目标设置为自身（用于动画，但实际不移动）
+            game.anim_phase = 1
+            game.anim_phase_frame = 0
+            game.battle_sub_state = BATTLE_STATE_ANIM
 
 def on_cancel_skill():
     game.target_selection_mode = False
@@ -374,32 +381,64 @@ def draw_battle(surface):
         # 计算攻击者移动偏移（真正移动到目标位置）
         offset_x = 0
         offset_y = 0
-        if anim_active and anim_target_idx is not None:
-            target_entity = combatants[anim_target_idx]["entity"]
-            start_pos = pos
-            target_pos = entity_pos.get(id(target_entity))
-            if target_pos:
-                move_vector = (target_pos[0] - start_pos[0] - 140, target_pos[1] - start_pos[1])
-                if anim_phase == 1:      # 前移
-                    progress = anim_phase_frame / ANIM_PHASE_FRAMES
-                    offset_x = move_vector[0] * progress
-                    offset_y = move_vector[1] * progress
-                elif anim_phase == 2:    # 攻击图片，保持在目标面前
-                    offset_x = move_vector[0]
-                    offset_y = move_vector[1]
-                elif anim_phase == 3:    # 后移
-                    progress = 1 - (anim_phase_frame / ANIM_PHASE_FRAMES)
-                    offset_x = move_vector[0] * progress
-                    offset_y = move_vector[1] * progress
+        if anim_active:
+            if game.anim_mode == "move":
+                if anim_target_idx is not None:
+                    target_entity = combatants[anim_target_idx]["entity"]
+                    start_pos = pos
+                    target_pos = entity_pos.get(id(target_entity))
+                    if target_pos:
+                        move_vector = (target_pos[0] - start_pos[0] - 140, target_pos[1] - start_pos[1])
+                        if anim_phase == 1:      # 前移
+                            progress = anim_phase_frame / ANIM_PHASE_FRAMES
+                            offset_x = move_vector[0] * progress
+                            offset_y = move_vector[1] * progress
+                        elif anim_phase == 2:    # 攻击图片，保持在目标面前
+                            offset_x = move_vector[0]
+                            offset_y = move_vector[1]
+                        elif anim_phase == 3:    # 后移
+                            progress = 1 - (anim_phase_frame / ANIM_PHASE_FRAMES)
+                            offset_x = move_vector[0] * progress
+                            offset_y = move_vector[1] * progress
+            elif game.anim_mode == "shake":
+            # 原地晃动动画：在阶段2和阶段3持续晃动，使用正弦波
+                if anim_phase == 2 or anim_phase == 3:
+                    import math  # 确保文件顶部已导入，或在此处临时导入
+                    # 计算当前在整个晃动阶段（阶段2+3）的进度 (0~1)
+                    total_shake_frames = ANIM_PHASE_FRAMES * 2  # 阶段2和3的总帧数
+                    current_shake_frame = anim_phase_frame
+                    if anim_phase == 3:
+                        current_shake_frame += ANIM_PHASE_FRAMES
+                    progress = current_shake_frame / total_shake_frames
+                    amplitude = 10  # 晃动幅度（像素），可自行调整
+                    # 正弦波，一个完整周期对应整个晃动阶段
+                    shift = amplitude * math.sin(progress * 2 * math.pi)
+                    offset_x = int(shift)
+                    # offset_y 保持0（如果需要上下晃动可添加）
 
         # 选择头像（攻击阶段使用进攻图片）
-        if anim_active and anim_phase == 2:
+                # 选择头像（根据动画状态和技能标志）
+               # 选择头像（根据动画状态和技能标志）
+        if anim_active:
             if game.anim_is_skill:
-                img = load_skill_avatar(role["name"], size=(80, 120))
+                if game.anim_mode == "move":
+                    # 攻击技能：阶段2用技能头像，其他用普通头像
+                    if anim_phase == 2:
+                        img = load_skill_avatar(role["name"], size=(80, 120))
+                    else:
+                        img = load_avatar(role["name"], size=(80, 120))
+                else:  # "shake" 或其他模式（治疗、嘲讽等）
+                    # 非攻击技能全程用技能头像
+                    img = load_skill_avatar(role["name"], size=(80, 120))
             else:
-                img = load_attack_avatar(role["name"], size=(80, 120))
-        else: 
+                # 普通攻击：阶段2用攻击头像，其他用普通头像
+                if anim_phase == 2:
+                    img = load_attack_avatar(role["name"], size=(80, 120))
+                else:
+                    img = load_avatar(role["name"], size=(80, 120))
+        else:
             img = load_avatar(role["name"], size=(80, 120))
+            
         draw_pos = (pos[0] + offset_x, pos[1] + offset_y)
         if img:
             surface.blit(img, draw_pos)
@@ -512,31 +551,58 @@ def draw_battle(surface):
     btn_attack_color = BLUE if current_is_player else GRAY
     btn_skill_color = PURPLE if current_is_player else GRAY
 
+    # 判断按钮是否可用（动画期间不可用）
+    buttons_enabled = (battle_sub_state != BATTLE_STATE_ANIM)
+
     # 攻击按钮
+    attack_border = btn_attack_color if buttons_enabled else GRAY
+    attack_callback = on_attack_click if buttons_enabled else None
     attack_btn = button.Button(
         rect=(x_attack, button_y, btn_width, btn_height),
         text="攻击", font_size=FONT_MEDIUM[1],
-        bg_color=GRAY, border_color=btn_attack_color, text_color=WHITE,
-        callback=on_attack_click
+        bg_color=GRAY, border_color=attack_border, text_color=WHITE,
+        callback=attack_callback
     )
     current_buttons.append(attack_btn)
 
-    # 技能按钮（根据目标模式显示不同文字和回调）
+    # 技能按钮（需要先获取技能名称）
+    skill_name = "技能"
+    if combatants and current_index < len(combatants):
+        current = combatants[current_index]
+        if current["type"] == "player":
+            entity = current["entity"]
+            skills = entity.get("skills")
+            if skills and len(skills) > 0:
+                skill_name = skills[0]["name"]
+
     if game.target_selection_mode:
-        skill_btn = button.Button(
-            rect=(x_skill, button_y, btn_width, btn_height),
-            text="取消", font_size=FONT_MEDIUM[1],
-            bg_color=GRAY, border_color=RED, text_color=WHITE,
-            callback=on_cancel_skill
-        )
+        skill_text = "取消"
+        skill_callback = on_cancel_skill
+        skill_border = RED
     else:
-        skill_btn = button.Button(
-            rect=(x_skill, button_y, btn_width, btn_height),
-            text="技能", font_size=FONT_MEDIUM[1],
-            bg_color=GRAY, border_color=btn_skill_color, text_color=WHITE,
-            callback=on_skill_click
-        )
+        skill_text = skill_name
+        skill_callback = on_skill_click if buttons_enabled else None
+        skill_border = btn_skill_color if buttons_enabled else GRAY
+
+    skill_btn = button.Button(
+        rect=(x_skill, button_y, btn_width, btn_height),
+        text=skill_text, font_size=FONT_MEDIUM[1],
+        bg_color=GRAY, border_color=skill_border, text_color=WHITE,
+        callback=skill_callback
+    )
     current_buttons.append(skill_btn)
+
+    # 逃跑按钮
+    run_callback = on_run_click if buttons_enabled else None
+    run_btn = button.Button(
+        rect=(x_run, button_y, btn_width, btn_height),
+        text="逃跑", font_size=FONT_MEDIUM[1],
+        bg_color=GRAY, border_color=GRAY, text_color=WHITE,
+        callback=run_callback
+    )
+    # 确保按钮被添加到列表
+    current_buttons.append(skill_btn)
+    #print(f"技能按钮已添加，文本: {skill_btn.text}")  # 调试输出
 
     # 逃跑按钮
     run_btn = button.Button(
@@ -550,6 +616,20 @@ def draw_battle(surface):
     # 绘制所有按钮
     for btn in current_buttons:
         btn.draw(surface)
+    
+        # 绘制战斗消息（右下角）
+    if game.battle_messages:
+        msg_x = SCREEN_WIDTH - 425
+        msg_y = SCREEN_HEIGHT - 175
+        bg_height = len(game.battle_messages) * 30
+        bg_surf = pygame.Surface((280, bg_height))
+        bg_surf.set_alpha(128)
+        bg_surf.fill(BLACK)
+        surface.blit(bg_surf, (msg_x, msg_y - 5))
+        for i, text in enumerate(game.battle_messages):
+            # 最新一条用黄色，其余用白色
+            color = YELLOW if i == len(game.battle_messages) - 1 else WHITE
+            draw_text(surface, text, 18, color, msg_x + 10, msg_y + i * 30, center=False)
 
 # 战斗按钮的回调函数（定义在ui.py中，以便访问game模块）
 def on_attack_click():
@@ -638,7 +718,10 @@ def draw_upgrade(surface):
         draw_text(surface, "技能：", FONT_MEDIUM[1], WHITE, 400, 480)
         sy = 520
         for sk in role["skills"]:
-            draw_text(surface, f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']})", FONT_SMALL[1], WHITE, 320, sy)
+            # 获取效果值，如果不存在则显示 ?
+            effect_value = sk.get('value', '?')
+            text = f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']}) 效果:{effect_value}"
+            draw_text(surface, text, FONT_SMALL[1], WHITE, 320, sy)
             sy += 35
 
     # 道具按钮

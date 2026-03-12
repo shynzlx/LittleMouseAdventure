@@ -14,6 +14,15 @@ ATTACK_AVATAR_MAP = {
     "传奇鼠鼠": "legend_mouse_attack.png",
 }
 
+#技能映射
+SKILL_AVATAR_MAP = {
+    "警卫鼠鼠": "guard_mouse_skill.png",
+    "短剑鼠鼠": "sword_mouse_skill.png",
+    "盾牌鼠鼠": "shield_mouse_skill.png",
+    "传奇鼠鼠": "legend_mouse_skill.png",
+    # 其他角色
+}
+
 # 新增敌人头像映射（普通状态）
 ENEMY_AVATAR_MAP = {
     "史莱姆": "enemy/slime.png",
@@ -28,15 +37,6 @@ ENEMY_AVATAR_MAP = {
 ENEMY_ATTACK_AVATAR_MAP = {
     "史莱姆": "enemy/slime_attack.png",
     "哥布林": "enemy/goblin_attack.png"
-}
-
-#技能映射
-SKILL_AVATAR_MAP = {
-    "警卫鼠鼠": "guard_mouse_skill.png",
-    "短剑鼠鼠": "sword_mouse_skill.png",
-    "盾牌鼠鼠": "shield_mouse_skill.png",
-    "传奇鼠鼠": "legend_mouse_skill.png",
-    # 其他角色
 }
 
 def get_avatar_filename(entity_name):

@@ -65,7 +65,8 @@ def handle_battle_target_click(pos):
                     if target_combatant_idx is None:
                         continue
                     # 存储技能信息，准备动画
-                    game.anim_is_skill = True  
+                    game.anim_is_skill = True 
+                    game.anim_mode = "shake"   
                     game.anim_skill = skill
                     game.anim_skill_target_idx = target_idx
                     game.anim_attacker_idx = game.current_index
@@ -94,6 +95,7 @@ def handle_battle_target_click(pos):
                         continue
                     # 存储技能信息，准备动画
                     game.anim_is_skill = True
+                    game.anim_mode = "move"   
                     game.anim_skill = skill
                     game.anim_skill_target_idx = target_idx
                     game.anim_attacker_idx = game.current_index

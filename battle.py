@@ -89,7 +89,10 @@ def perform_attack(combatants, current_index, target_index, skill_points):
     target_entity = combatants[target_index]["entity"]
     dmg = random.randint(20, 40) + attacker["atk"]
     target_entity["hp"] -= dmg
-    print(f"{attacker['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
+    msg = f"{attacker['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
+    print(msg)                                                              
+    game.add_battle_message(msg)                                            
+
     # 添加伤害数字
     target_type = combatants[target_index]["type"]
     slot_idx = combatants[target_index]["slot_index"]
@@ -156,7 +159,10 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
         # 自身技能
         if skill["type"] == "taunt":
             attacker_entity["taunt"] = attacker_entity.get("taunt", 1) + skill["value"]
-            print(f"{attacker_entity['name']} 使用 {skill['name']}，嘲讽度+{skill['value']}")
+            msg = f"{attacker_entity['name']} 使用 {skill['name']}，嘲讽度+{skill['value']}"  
+            print(msg)                                                                        
+            game.add_battle_message(msg)
+
         # 其他自身技能可扩展
         new_skill_points = game.current_skill_points - 1
         update_combatants(combatants, current_index)
@@ -171,7 +177,9 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
                 target_entity = player_team[target_idx]  # target_idx 是 player_team 索引
                 heal = skill["value"]
                 target_entity["hp"] = min(target_entity["max_hp"], target_entity["hp"] + heal)
-                print(f"{attacker_entity['name']} 治疗 {target_entity['name']}，恢复 {heal} HP")
+                msg = f"{attacker_entity['name']} 治疗 {target_entity['name']}，恢复 {heal} HP"   
+                print(msg)                                                                    
+                game.add_battle_message(msg)   
                 # 添加绿色数字
                 pos = formation.PLAYER_POSITIONS[target_idx]  # 简化：需根据实际站位获取坐标
                 pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
@@ -180,7 +188,9 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
                 target_entity = enemies[target_idx]  # target_idx 是敌人列表索引
                 dmg = skill["value"] + attacker_entity["atk"]
                 target_entity["hp"] -= dmg
-                print(f"{attacker_entity['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
+                msg = f"{attacker_entity['name']} 使用 {skill['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
+                print(msg)                                                                                          
+                game.add_battle_message(msg)     
                 # 获取敌人实际站位坐标
                 slot_idx = target_entity.get("slot", 0)
                 pos = formation.ENEMY_POSITIONS[slot_idx]
@@ -204,7 +214,9 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
             for role in player_team:
                 if role["hp"] > 0:
                     role["hp"] = min(role["max_hp"], role["hp"] + heal)
-            print(f"{attacker_entity['name']} 全体治疗 {heal} HP")
+            msg = f"{attacker_entity['name']} 使用 {skill['name']}，全体治疗 {heal} HP"   
+            print(msg)                                                              
+            game.add_battle_message(msg)               
             new_skill_points = game.current_skill_points - 1
             update_combatants(combatants, current_index)
             next_idx = get_next_attacker(combatants)
@@ -222,7 +234,9 @@ def enemy_attack(combatants, attacker_index, target_index):
     
     dmg = random.randint(15, 30)
     target_entity["hp"] = max(0, target_entity["hp"] - dmg)
-    print(f"{enemy['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害")
+    msg = f"{enemy['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
+    print(msg)                                                          
+    game.add_battle_message(msg)      
     # 添加伤害数字
     target_type = combatants[target_index]["type"]
     slot_idx = combatants[target_index]["slot_index"]

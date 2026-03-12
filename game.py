@@ -19,6 +19,9 @@ upgrade_scroll = 0               # 养成界面滚动偏移
 confirm_level = 1                # 待确认的关卡
 current_skill_points = 0         # 战斗技能点
 damage_numbers = []              # 伤害数字动画列表
+#战斗消息 
+battle_messages = []           # 每个元素为 (文本, 剩余帧数)
+MAX_MESSAGES = 5               # 最多显示5条
 
 # 技能目标选择
 target_selection_mode = False      # 是否处于选择目标模式
@@ -37,6 +40,7 @@ anim_frame = 0                   # 旧版动画帧（可能废弃，但保留）
 anim_skill = None                # 当前动画对应的技能字典
 anim_skill_target_idx = None     # 技能目标在 player_team 或 enemies 中的索引
 anim_is_skill = False            # 当前动画是否为技能（用于区分头像）
+anim_mode = "move"                # 当前动画模式："move" 或 "shake"
 
 # 上阵界面相关
 formation_selected_role_index = -1      # 当前选中的角色在 player_team 中的索引，-1表示未选中
@@ -166,3 +170,17 @@ def update_damage_numbers():
         if d["frame"] >= d["max_frame"]:
             damage_numbers.remove(d)
     return len(damage_numbers) > 0
+
+def add_battle_message(text):
+    """添加一条战斗消息，自动移除最旧的消息"""
+    battle_messages.append(text)
+    if len(battle_messages) > MAX_MESSAGES:
+        battle_messages.pop(0)
+
+def update_battle_messages():
+    """更新消息的剩余帧数，移除过期的"""
+    global battle_messages
+    for msg in battle_messages[:]:
+        msg[1] -= 1
+        if msg[1] <= 0:
+            battle_messages.remove(msg)
