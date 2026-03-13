@@ -115,11 +115,13 @@ while running:
 
                 # 处理战斗结果
                 if result == "win":
+                    game.battle_messages.clear()
                     reward = get_reward_for_level(game.current_level)
                     game.win_reward = reward
                     game.add_reward(reward)
                     game.set_state(STATE_WIN)
                 elif result == "lose":
+                    game.battle_messages.clear()
                     game.set_state(STATE_LOSE)
                 else:
                     game.current_index = next_index

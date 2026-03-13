@@ -6,11 +6,10 @@ ROLE_DATA = {
     "rarity": "SR",
     "level": 1,
     "exp": 0,
-    "exp_to_next": 80,
-    "hp": 120,
-    "max_hp": 120,
-    "atk": 15,
-    "stamina": 70,
+    "hp": 1200,
+    "max_hp": 1200,
+    "atk": 150,
+    "stamina": 700,
     "taunt":2,
     "speed": 30,
     "skills": [
@@ -22,7 +21,7 @@ ROLE_DATA = {
             "description": "嘲讽敌人！",
             "level": 1,
             "proficiency": 0,
-            "prof_to_next": 50
+            "prof_to_next": 500
         }
     ],
     "color": PURPLE,

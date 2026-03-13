@@ -186,7 +186,9 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
                 game.add_damage_number(pos, heal, color=GREEN)
             elif skill["type"] == "attack":
                 target_entity = enemies[target_idx]  # target_idx 是敌人列表索引
-                dmg = skill["value"] + attacker_entity["atk"]
+                dmg = int(skill["value"] + attacker_entity["atk"] + random.randint(-50, 50))
+                # 确保伤害不低于某个最小值（可选）
+                dmg = max(1, dmg)
                 target_entity["hp"] -= dmg
                 msg = f"{attacker_entity['name']} 使用 {skill['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
                 print(msg)                                                                                          
@@ -232,7 +234,7 @@ def enemy_attack(combatants, attacker_index, target_index):
     enemy = combatants[attacker_index]["entity"]
     target_entity = combatants[target_index]["entity"]
     
-    dmg = random.randint(15, 30)
+    dmg = random.randint(15, 30) + enemy["atk"]
     target_entity["hp"] = max(0, target_entity["hp"] - dmg)
     msg = f"{enemy['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
     print(msg)                                                          
@@ -269,7 +271,6 @@ def enemy_attack(combatants, attacker_index, target_index):
 def calculate_taunt_probabilities(combatants):
     """
     计算所有存活的玩家单位的被攻击概率（基于嘲讽度）
-    返回字典：{ combatant_index: 概率 }
     """
     # 找出所有存活的玩家单位
     player_indices = [i for i, c in enumerate(combatants) if c["type"] == "player" and c["entity"]["hp"] > 0]

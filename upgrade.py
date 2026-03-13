@@ -1,24 +1,31 @@
 # upgrade.py - 养成逻辑
 
 import random
+import math
 from constants import *
 from config import skill_config as skill_cfg
+from config import level_config as level_cfg
 
 def use_exp_book(selected_role_index, player_team, inventory):
     if inventory["exp_book"] > 0:
         role = player_team[selected_role_index]
         inventory["exp_book"] -= 1
-        add_exp = 80 + random.randint(0, 40)
+        add_exp = level_cfg.EXP_BOOK_GAIN_MIN + random.randint(0, level_cfg.EXP_BOOK_GAIN_MAX - level_cfg.EXP_BOOK_GAIN_MIN)
         role["exp"] += add_exp
         print(f"使用经验书：获得 {add_exp} 经验")
         while role["exp"] >= role["exp_to_next"]:
             role["exp"] -= role["exp_to_next"]
             role["level"] += 1
-            role["exp_to_next"] = int(role["exp_to_next"] * 1.5)
-            role["max_hp"] += 15
+            # 直接按公式计算下一级所需经验（避免累积误差）
+            new_level = role["level"] + 1  # 下一级的等级
+            role["exp_to_next"] = int(round(
+                level_cfg.BASE_EXP_TO_NEXT * (level_cfg.NEXT_LEVEL_EXP_FACTOR ** (new_level - 1))
+            ))
+            # 属性增加
+            role["max_hp"] += level_cfg.LEVEL_UP_HP_INCREASE
             role["hp"] = role["max_hp"]
-            role["atk"] += 5
-            role["stamina"] += 8
+            role["atk"] += level_cfg.LEVEL_UP_ATK_INCREASE
+            role["stamina"] += level_cfg.LEVEL_UP_STAMINA_INCREASE
             print(f"{role['name']} 升级到 Lv.{role['level']}")
 
 def use_skill_book(selected_role_index, player_team, inventory):
@@ -48,25 +55,38 @@ def use_skill_book(selected_role_index, player_team, inventory):
     # 检查是否升级
     while skill["proficiency"] >= skill["prof_to_next"]:
         skill["proficiency"] -= skill["prof_to_next"]
+        old_level = skill["level"]
         skill["level"] += 1
+        new_level = skill["level"]
         skill["prof_to_next"] = int(skill["prof_to_next"] * 1.6)
 
-        # 根据技能类型应用升级效果
-        skill_type = skill.get("type")
-        if skill_type in ("attack", "heal"):
-            # 攻击或治疗技能：效果值 + 配置值
-            skill["value"] = skill.get("value", 20) + skill_cfg.ATTACK_HEAL_UPGRADE_VALUE_INCREASE
-            print(f"  {skill['name']} 升级到 Lv.{skill['level']}，效果值+{skill_cfg.ATTACK_HEAL_UPGRADE_VALUE_INCREASE}，现为 {skill['value']}")
-        elif skill_type == "taunt":
-            # 嘲讽技能：嘲讽值增加量 + 配置值，并回复自身一定比例最大生命值
-            skill["value"] = skill.get("value", 5) + skill_cfg.TAUNT_UPGRADE_VALUE_INCREASE
+        # 获取技能类型，选择增量公式
+        skill_type = skill.get("type", "default")
+        formula = skill_cfg.INCREMENT_FORMULAS.get(skill_type)
+
+        # 准备命名空间（提供当前等级和 math 模块）
+        namespace = {"level": old_level, "math": math}
+        try:
+            increment = eval(formula, {"__builtins__": {}}, namespace)
+        except Exception as e:
+            print(f"技能增量公式计算错误: {e}，使用默认增量 0")
+            increment = 0
+
+        # 确保数值类型
+        if not isinstance(increment, (int, float)):
+            increment = 0
+
+        # 更新技能效果值
+        old_value = skill.get("value", 0)
+        skill["value"] = old_value + increment
+
+        # 嘲讽技能特殊效果：回血
+        if skill_type == "taunt":
             heal = int(role["max_hp"] * skill_cfg.TAUNT_UPGRADE_HEAL_RATIO)
             role["hp"] = min(role["max_hp"], role["hp"] + heal)
-            print(f"  {skill['name']} 升级到 Lv.{skill['level']}，嘲讽值增加量+{skill_cfg.TAUNT_UPGRADE_VALUE_INCREASE}，并回复 {heal} HP")
+            print(f"  {skill['name']} 升级到 Lv.{new_level}，效果值 +{increment:.2f}（现 {skill['value']:.2f}），并回复 {heal} HP")
         else:
-            # 其他类型默认增加效果值
-            skill["value"] = skill.get("value", 20) + skill_cfg.DEFAULT_UPGRADE_VALUE_INCREASE
-            print(f"  {skill['name']} 升级到 Lv.{skill['level']}，效果值+{skill_cfg.DEFAULT_UPGRADE_VALUE_INCREASE}")
+            print(f"  {skill['name']} 升级到 Lv.{new_level}，效果值 +{increment:.2f}，现为 {skill['value']:.2f}")
 
     print(f"技能书使用完毕，剩余 {inventory['skill_book']} 本")
 

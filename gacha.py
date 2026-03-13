@@ -3,14 +3,15 @@
 import random
 from constants import *
 from characters import load_all_roles   # 导入加载函数
+from config import level_config as level_cfg
 
 # 动态加载所有角色作为抽卡池
 role_pool = load_all_roles()
 
 def perform_gacha(player_team, inventory):
     """抽卡，需要消耗金币"""
-    # 设定每次抽卡消耗 100 金币（你可以自己调整数值）
-    COST = 100
+    # 设定每次抽卡消耗 10 金币（你可以自己调整数值）
+    COST = 10
 
     # 检查金币是否足够
     if inventory.get("gold", 0) < COST:
@@ -29,6 +30,7 @@ def perform_gacha(player_team, inventory):
     candidates = [r for r in role_pool if r["rarity"] == rarity]
     if candidates:
         new_role = random.choice(candidates).copy()
+        new_role["exp_to_next"] = level_cfg.BASE_EXP_TO_NEXT  # 技能熟练度相关字段保持不变（如果需要配置化可后续添加）
         new_role["active"] = False          # 新角色默认不上阵
         player_team.append(new_role)
         print(f"抽到 {rarity} 角色: {new_role['name']}")

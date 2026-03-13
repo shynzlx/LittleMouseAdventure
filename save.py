@@ -5,6 +5,7 @@
 import json  # Python 自带的 JSON 工具
 import os    # 检查文件是否存在用
 from characters import load_all_roles   # 导入角色文件
+from config import level_config as level_cfg
 
 SAVE_FILE = "save.json"  # 存档文件名，就叫 save.json，放在游戏同目录
 
@@ -42,19 +43,19 @@ def load_game():
         # 无存档：从角色文件创建初始队伍
         print("没有找到存档，从角色文件创建初始队伍")
         all_roles = load_all_roles()
-        target_role_name = "警卫鼠鼠"   # 你要的初始角色名称
+        target_role_name = "警卫鼠鼠"
         base_role = next((r for r in all_roles if r["name"] == target_role_name), None)
         
         if base_role:
-            # 深拷贝基础角色数据
             initial_role = base_role.copy()
             initial_role["skills"] = [skill.copy() for skill in initial_role.get("skills", [])]
-            initial_role.setdefault("active", True)      # 默认上阵
+            # 设置初始经验值为配置值（覆盖可能存在的旧值）
+            initial_role["exp_to_next"] = level_cfg.BASE_EXP_TO_NEXT
+            initial_role.setdefault("active", True)
             initial_role.setdefault("speed", initial_role.get("stamina", 50))
-            initial_role.setdefault("slot", 0) 
+            initial_role.setdefault("slot", 0)
             player_team = [initial_role]
             print(f"初始角色设为：{target_role_name}")
-        # 初始物资（与之前保持一致）
-        inventory = {"gold": 1000, "exp_book": 5, "skill_book": 3}
+        inventory = {"gold": 1000, "exp_book": 1000, "skill_book": 1000}
         current_level = 1
         return player_team, inventory, current_level

@@ -291,6 +291,10 @@ def draw_turn_order(surface, combatants, current_index, x, y, width=150, entry_h
 
 def on_skill_click():
     if game.combatants and game.combatants[game.current_index]["type"] == "player":
+        if game.current_skill_points <= 0:
+            print("技能点不足！")
+            game.add_battle_message("技能点不足！")
+            return
         current_entity = game.combatants[game.current_index]["entity"]
         skills = current_entity.get("skills")
         if not skills:
@@ -642,6 +646,7 @@ def on_attack_click():
 
 def on_run_click():
     from battle import reset_team_hp
+    game.battle_messages.clear()
     reset_team_hp(game.player_team)
     game.set_state(STATE_CHALLENGE)
 
@@ -720,8 +725,8 @@ def draw_upgrade(surface):
         for sk in role["skills"]:
             # 获取效果值，如果不存在则显示 ?
             effect_value = sk.get('value', '?')
-            text = f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']}) 效果:{effect_value}"
-            draw_text(surface, text, FONT_SMALL[1], WHITE, 320, sy)
+            text = f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']})"
+            draw_text(surface, text, FONT_SMALL[1], WHITE, 400, sy)
             sy += 35
 
     # 道具按钮
@@ -854,6 +859,7 @@ def draw_confirm(surface):
 
 def start_battle():
     """开始战斗，初始化 combatants 等"""
+    game.battle_messages.clear() 
     active_team = game.get_active_team()
     if not active_team:
         print("没有上阵角色，无法战斗！")
