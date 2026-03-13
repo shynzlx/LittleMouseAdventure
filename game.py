@@ -53,20 +53,26 @@ inventory = {}
 
 # ----- 初始化函数 -----
 def init_game():
-    """加载存档并初始化角色数据（原 main.py 中的初始化代码）"""
     global player_team, inventory, current_level
     player_team, inventory, current_level = save.load_game()
 
-    # 以下是从 main.py 复制的角色数据补全代码
-    role_pool = load_all_roles()
-    role_base_map = {role["name"]: role for role in role_pool}
+    # 加载我方角色基础数据
+    friendly_roles = load_all_roles()  # 从 characters.py 导入
+    role_base_map = {role["name"]: role for role in friendly_roles}
 
     for role in player_team:
         base = role_base_map.get(role["name"])
         if base:
+            # 补全缺失字段（如技能、颜色等）
             for key, value in base.items():
-                if key not in role:
+                if key not in role and key not in ("base_stats", "growth"):
                     role[key] = value
+            # 确保技能列表中的每个技能都有完整字段
+            for i, skill in enumerate(role.get("skills", [])):
+                base_skill = base["skills"][i] if i < len(base["skills"]) else {}
+                for k, v in base_skill.items():
+                    if k not in skill:
+                        skill[k] = v
 
     # 为所有角色添加 active 字段（如果没有）
     for i, role in enumerate(player_team):

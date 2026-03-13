@@ -1,16 +1,38 @@
-# characters/__init__.py
 import os
-import importlib
+import importlib.util
+
+def load_friendly_roles():
+    """加载 friendly 文件夹中的所有角色（返回 ROLE_DATA 字典列表）"""
+    roles = []
+    folder = os.path.join(os.path.dirname(__file__), "friendly")
+    for filename in os.listdir(folder):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            file_path = os.path.join(folder, filename)
+            spec = importlib.util.spec_from_file_location(filename[:-3], file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if hasattr(module, "ROLE_DATA"):
+                roles.append(module.ROLE_DATA)
+    return roles
 
 def load_all_roles():
-    """加载 characters 目录下所有角色数据，返回角色字典列表"""
-    roles = []
-    package_dir = os.path.dirname(__file__)          # 获取当前目录路径
-    for filename in os.listdir(package_dir):
-        if filename.endswith(".py") and filename != "__init__.py":
-            module_name = filename[:-3]               # 去掉 .py 后缀
-            module = importlib.import_module(f"characters.{module_name}")
-            if hasattr(module, "ROLE_DATA"):
-                role_data = module.ROLE_DATA.copy()   # 复制一份，避免后续意外修改
-                roles.append(role_data)
-    return roles
+    """供旧代码调用，返回所有友方角色"""
+    return load_friendly_roles()
+
+def load_enemy_base(enemy_name):
+    """根据名称加载敌人基础数据"""
+    folder = os.path.join(os.path.dirname(__file__), "enemy")
+    for filename in os.listdir(folder):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            file_path = os.path.join(folder, filename)
+            spec = importlib.util.spec_from_file_location(filename[:-3], file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if hasattr(module, "name") and module.name == enemy_name:
+                return {
+                    "name": module.name,
+                    "base_stats": module.base_stats,
+                    "growth": module.growth,
+                    "skills": getattr(module, "skills", [])
+                }
+    return None

@@ -379,8 +379,9 @@ def draw_battle(surface):
 
         # 判断是否正在动画中且是该角色（攻击者）
         anim_active = (battle_sub_state == BATTLE_STATE_ANIM and 
-                       anim_attacker_idx is not None and 
-                       combatants[anim_attacker_idx]["entity"] is role)
+                        anim_attacker_idx is not None and 
+                        combatants[anim_attacker_idx]["entity"] is role)
+
 
         # 计算攻击者移动偏移（真正移动到目标位置）
         offset_x = 0
@@ -453,12 +454,16 @@ def draw_battle(surface):
         if game.target_selection_mode and role in game.selectable_targets:
             pygame.draw.rect(surface, YELLOW, (*pos, formation.SLOT_WIDTH, formation.SLOT_HEIGHT), 5)
 
-        # 绘制名称和HP（保持在原位置，不随角色移动）
         name_color = GRAY if role["hp"] <= 0 else (YELLOW if is_current else WHITE)
-        draw_text(surface, role["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 - 20)
+
+        # 绘制名称和HP（保持在原位置，不随角色移动）
+        # 名称和等级合并
+        name_level_text = f"{role['name']} Lv.{role['level']}"
+        draw_text(surface, name_level_text, 20, name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 - 20)
+        # 血量（字号也调小）
         hp_display = max(0, role["hp"])
         hp_text = f"HP: {hp_display}/{role['max_hp']}"
-        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 + 20)
+        draw_text(surface, hp_text, 20, name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 + 20)
 
         if role["hp"] <= 0:
             s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
@@ -519,10 +524,12 @@ def draw_battle(surface):
 
         # 绘制名称和HP
         name_color = YELLOW if is_current else RED
-        draw_text(surface, enemy["name"], FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 - 20)
+        # 显示敌人名称和等级（字号20）
+        name_level_text = f"{enemy['name']} Lv.{enemy.get('level', 1)}"
+        draw_text(surface, name_level_text, 20, name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 - 20)
+        # 显示血量（字号20）
         hp_text = f"HP: {max(0, enemy['hp'])}/{enemy['max_hp']}"
-        draw_text(surface, hp_text, FONT_SMALL[1], name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 + 20)
-
+        draw_text(surface, hp_text, 20, name_color, pos[0] + formation.SLOT_WIDTH * 2, pos[1] + formation.SLOT_HEIGHT//2 + 20)
         if enemy["hp"] <= 0:
             s = pygame.Surface((formation.SLOT_WIDTH, formation.SLOT_HEIGHT))
             s.set_alpha(128)
