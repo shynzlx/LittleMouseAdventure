@@ -49,9 +49,11 @@ ESC 键返回上一级菜单
 升级经验系统更新、技能经验系统更新.
 
 技能升级所需经验如下
+
 ![截图](./images/skill_update.png)
 
 等级所需经验变化如下
+
 ![截图](./images/level_update.png)
 
 
