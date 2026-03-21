@@ -52,6 +52,9 @@ formation_scroll = 0                    # 上阵界面角色列表滚动偏移
 player_team = []
 inventory = {}
 
+# 挖矿相关
+mining_bg_timer = 0          # 背景切换计时器（帧数）
+
 # ----- 初始化函数 -----
 def init_game():
     global player_team, inventory, current_level
@@ -166,10 +169,15 @@ def add_reward(reward):
     for key, value in reward.items():
         inventory[key] = inventory.get(key, 0) + value
 
-def add_damage_number(pos, value, color=RED):
+def add_damage_number(pos, value, color=RED, text=None):
+    """添加飘字动画，value用于数值，text可选自定义文本"""
+    if text is None:
+        sign = "+" if color == GREEN else "-"
+        text = f"{sign}{value}"
     damage_numbers.append({
         "pos": pos,
         "value": value,
+        "text": text,
         "color": color,
         "frame": 0,
         "max_frame": 20,
@@ -177,21 +185,16 @@ def add_damage_number(pos, value, color=RED):
     })
 
 def update_damage_numbers():
-    """更新伤害数字动画，返回是否还有活跃的数字"""
     global damage_numbers
     from constants import FONT_MEDIUM
     import pygame
     font = pygame.font.Font(FONT_MEDIUM[0], FONT_MEDIUM[1])
 
     for d in damage_numbers[:]:
-        color = d["color"]
-        # 根据颜色判断符号：绿色为治疗（+），其他为伤害（-）
-        sign = "-"
-        if color == GREEN:
-            sign = "+"
-        text_surf = font.render(f"{sign}{d['value']}", True, color)
+        # 使用存储的文本，不再自动生成符号
+        text_surf = font.render(d["text"], True, d["color"])
         d["frame"] += 1
-        d["offset_y"] = -d["frame"] * 1  # 向上移动
+        d["offset_y"] = -d["frame"] * 1
         if d["frame"] >= d["max_frame"]:
             damage_numbers.remove(d)
     return len(damage_numbers) > 0

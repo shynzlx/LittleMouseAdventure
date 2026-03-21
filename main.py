@@ -10,6 +10,8 @@ import random        # 仍然需要
 from constants import *
 from battle import enemy_attack, perform_attack, reset_team_hp
 from inventory import get_reward_for_level
+from utils import resource_path
+
 
 # 初始化 Pygame
 pygame.init()
@@ -43,7 +45,10 @@ while running:
                 continue  # 按钮已处理，跳过后续
             
             # 第二步：处理非按钮点击（如战斗选目标、上阵站位点击）
-            if game.game_state == STATE_CHALLENGE_BATTLE:
+            if game.game_state == STATE_MINING:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    handlers.handle_mining_click(event.pos)
+            elif game.game_state == STATE_CHALLENGE_BATTLE:
                 handlers.handle_battle_target_click(event.pos)
             elif game.game_state == STATE_FORMATION:
                 handlers.handle_formation_slot_click(event.pos)
@@ -66,6 +71,8 @@ while running:
         if game.game_state == STATE_CHALLENGE:
             game.set_state(STATE_MENU)
         elif game.game_state == STATE_WORLD:
+            game.set_state(STATE_MENU)
+        elif game.game_state == STATE_MINING:   
             game.set_state(STATE_MENU)
 
     # ===== 自动敌人攻击 =====
@@ -140,6 +147,9 @@ while running:
                 game.anim_is_skill = False
                 game.anim_mode = "move" 
     game.update_damage_numbers()   # 更新伤害数字动画
+    # 更新挖矿背景计时器
+    if game.mining_bg_timer > 0:
+        game.mining_bg_timer -= 1
 
     # ===== 检测状态变化并更新音乐 =====
     if game.game_state != game.prev_state:
@@ -171,8 +181,10 @@ while running:
         ui.draw_lose(screen)
     elif game.game_state == STATE_WIN:
         ui.draw_win(screen)
-    elif game.game_state == STATE_FORMATION:   # 注意 STATE_FORMATION 需要在 constants.py 中定义为 10
+    elif game.game_state == STATE_FORMATION:  
         ui.draw_formation(screen)
+    elif game.game_state == STATE_MINING:
+        ui.draw_mining(screen)
 
     # 更新屏幕
     pygame.display.flip()

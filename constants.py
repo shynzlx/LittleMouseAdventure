@@ -39,6 +39,7 @@ STATE_CONFIRM = 7  # 关卡确认界面
 STATE_LOSE = 8     #失败界面
 STATE_WIN = 9   # 胜利界面
 STATE_FORMATION = 10      # 上阵界面
+STATE_MINING = 11  # 挖矿界面
 
 # 按钮大小
 BTN_WIDTH = 450

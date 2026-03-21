@@ -143,3 +143,14 @@ def handle_formation_slot_click(pos):
                     ui.place_role_to_slot(i)
                     return True
     return False
+
+def handle_mining_click(pos):
+    """挖矿界面点击处理"""
+    # 增加金币
+    game.inventory["gold"] = game.inventory.get("gold", 0) + 1
+    # 设置背景切换计时器（20帧后恢复）
+    game.mining_bg_timer = 20
+    # 添加金币飘字动画
+    from constants import BLACK
+    game.add_damage_number(pos, 1, color=BLACK, text="coin +1")
+    return True

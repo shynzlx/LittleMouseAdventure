@@ -8,6 +8,7 @@ import game               # 新增：访问游戏状态
 import button             # 新增：使用按钮类
 import textwrap
 import re
+from utils import resource_path
 
 def clean_story_text(text):
     """清理故事文本：去除每行前后空格，合并连续空格，但保留换行"""
@@ -67,7 +68,7 @@ def load_avatar(role_name, size=(180, 270)):
     if filename is None:
         return None
 
-    full_path = f"assets/avatars/{filename}"
+    full_path = resource_path(f"assets/avatars/{filename}")
     cache_key = f"{full_path}_{size[0]}_{size[1]}"   # 包含尺寸的缓存键
     if cache_key not in avatar_cache:
         try:
@@ -114,7 +115,7 @@ def load_skill_avatar(role_name, size=(180, 270)):
     return avatar_cache[cache_key]
 
 def get_font(size, bold=False):
-    font = pygame.font.Font(FONT_MEDIUM[0], size)
+    font = pygame.font.Font(resource_path(FONT_MEDIUM[0]), size) 
     if bold:
         font.set_bold(True)
     return font
@@ -149,12 +150,10 @@ def draw_menu(surface):
 
     # 加载背景图片（从 assets 文件夹）
     try:
-        bg_image = pygame.image.load('assets/main.png')
-        # 缩放图片至窗口大小
+        bg_image = pygame.image.load(resource_path('assets/main.png'))   
         bg_image = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         surface.blit(bg_image, (0, 0))
     except:
-        # 如果图片加载失败，就用纯黑色背景
         surface.fill(BLACK)
 
     # 计算按钮水平居中位置
@@ -221,6 +220,16 @@ def draw_menu(surface):
         callback=lambda: game.set_state(STATE_FORMATION)
     )
     current_buttons.append(btn6)
+
+    # 挖矿按钮（新增）
+    mine_rect = pygame.Rect(formation_rect.left - MENU_BTN_WIDTH - margin + 25, bottom_y, MENU_BTN_WIDTH, MENU_BTN_HEIGHT)
+    btn7 = button.Button(
+        rect=mine_rect,
+        text="挖矿", font_size=15,
+        bg_color=YELLOW, border_color=WHITE, text_color=BLACK,
+        callback=lambda: game.set_state(STATE_MINING)
+    )
+    current_buttons.append(btn7)
 
     # 绘制所有按钮
     for btn in current_buttons:
@@ -590,7 +599,7 @@ def draw_battle(surface):
         # 根据帧数计算透明度
         alpha = 255 - 0.5 * int(255 * d["frame"] / d["max_frame"])
         # 创建字体并渲染数字
-        font = pygame.font.Font(FONT_MEDIUM[0], FONT_MEDIUM[1])
+        font = get_font(FONT_MEDIUM[1]) 
         text_surf = font.render(f"-{d['value']}", True, d.get("color", RED))
         text_surf.set_alpha(alpha)
         text_rect = text_surf.get_rect(center=(x, y + 50))
@@ -831,6 +840,7 @@ def draw_upgrade(surface):
     # 从右向左计算坐标
     x_exp = SCREEN_WIDTH - btn_width - margin
     x_skill = x_exp - btn_width - margin
+    
 
     # 经验书按钮
     exp_btn = button.Button(
@@ -888,6 +898,21 @@ def use_skill_book(index):
 def draw_gacha(surface):
     global current_buttons
     current_buttons.clear()
+
+     # 加载背景图（可缓存，避免重复加载）
+    if not hasattr(draw_gacha, "bg_image"):
+        try:
+            draw_gacha.bg_image = pygame.image.load(resource_path('assets/gacha.png')).convert()
+        except:
+            draw_gacha.bg_image = None
+            print("抽卡背景图加载失败")
+    if draw_gacha.bg_image:
+        # 缩放至全屏并绘制
+        bg = pygame.transform.scale(draw_gacha.bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        surface.blit(bg, (0, 0))
+    else:
+        # 备用背景
+        surface.fill(BLACK)
 
     draw_text(surface, "抽卡系统", FONT_TITLE[1], ORANGE, SCREEN_WIDTH//2, 120)
 
@@ -1211,3 +1236,43 @@ def place_role_to_slot(slot_index):
     game.formation_selected_role_index = -1
     game.formation_step = 0
 #===========================================上阵界面结束===============================#
+
+# 挖矿界面
+mining_img1 = None
+mining_img2 = None
+
+def draw_mining(surface):
+    current_buttons.clear()  
+    global mining_img1, mining_img2
+    # 加载背景图片（只加载一次）
+    if mining_img1 is None:
+        try:
+            mining_img1 = pygame.image.load(resource_path('assets/mine_1.png')).convert() 
+            mining_img2 = pygame.image.load(resource_path('assets/mine_2.png')).convert()  
+        except Exception as e:
+            print(f"挖矿背景加载失败: {e}")
+            # 如果加载失败，填充黑色背景作为后备
+            surface.fill(BLACK)
+            return
+    # 根据计时器选择图片
+    if game.mining_bg_timer > 0:
+        img = mining_img2
+    else:
+        img = mining_img1
+    # 缩放至全屏
+    img = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    surface.blit(img, (0, 0))
+    # 提示文字
+    draw_text(surface, "点击任意位置挖矿", FONT_MEDIUM[1], BLACK, SCREEN_WIDTH//2, SCREEN_HEIGHT - 50)
+        # 绘制飘字动画（复用战斗中的飘字系统）
+    for d in game.damage_numbers:
+        x, y = d["pos"]
+        y += d["offset_y"]
+        # 根据帧数计算透明度
+        alpha = 255 - 0.5 * int(255 * d["frame"] / d["max_frame"])
+        # 创建字体并渲染文字
+        font = get_font(FONT_MEDIUM[1])
+        text_surf = font.render(d["text"], True, d["color"])
+        text_surf.set_alpha(alpha)
+        text_rect = text_surf.get_rect(center=(x, y + 50))
+        surface.blit(text_surf, text_rect)
