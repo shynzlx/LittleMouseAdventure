@@ -9,7 +9,7 @@ ROLE_DATA = {
     "hp": 700,
     "max_hp": 700,
     "atk": 200,
-    "stamina": 600,
+    "stamina": 500,
     "taunt": 1,
     "speed": 50,
     "skills": [
@@ -21,8 +21,10 @@ ROLE_DATA = {
             "description": "对敌方单体造成精确打击！",
             "level": 1,
             "proficiency": 0,
-            "prof_to_next": 100
+            "prof_to_next": 500
         }
     ],
     "color": GRAY,
+    "story":"  他曾是稀里糊涂的来到战场上的。\n  警卫鼠鼠曾经没有考上大学，也本对自己的鼠生不报任何期待。\
+直到王国被入侵的那天，他从一只哥布林手下抢过了一只小鼠的生命，这让他看到了他生命的意义——他要用手里这支小小的警棍，保卫更多的生命。"
 }

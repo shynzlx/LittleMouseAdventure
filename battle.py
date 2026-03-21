@@ -4,11 +4,39 @@ import random
 from constants import *
 import game
 import formation
+from upgrade import add_exp_to_role, check_skill_upgrade
 
 
 def calculate_remaining_time(speed):
     """根据速度计算初始剩余时间"""
     return BASE_TIME / speed if speed > 0 else BASE_TIME
+
+def get_attack_factor():
+    """
+    返回伤害随机因子，范围 0.9 ~ 1.1，采用三角分布，众数 1.0。
+    """
+    return random.triangular(0.9, 1.1, 1.0)
+
+def get_attack_multiplier(attacker):
+    """
+    根据攻击者的耐力和当前疲劳值计算伤害倍率。
+    公式：
+        若 fatigue <= 2，倍率 = 1；
+        否则，倍率 = 1 / (1 + a * (fatigue - 2))
+        其中 a = FATIGUE_DECAY_RATE / (1 + stamina / FATIGUE_STAMINA_FACTOR)
+    """
+    fatigue = attacker.get("fatigue", 0)
+    stamina = attacker.get("stamina")  
+
+    if fatigue <= 2:
+        return 1.0
+
+    stamina_factor = 1 + stamina / FATIGUE_STAMINA_FACTOR
+    a = FATIGUE_DECAY_RATE / stamina_factor
+    x = fatigue - 2
+    multiplier = 1 / (1 + a * x)
+
+    return multiplier  # 不设下限
 
 def initialize_combatants(player_team, enemies):
     """初始化战斗单位列表，包含所有上阵角色和敌人"""
@@ -80,18 +108,46 @@ def cleanup_combatants(combatants):
         return "lose"
     return "continue"
 
+def grant_kill_rewards(attacker_entity, skill_used, killed_entities):
+    """发放击杀奖励：角色经验+5/每个，技能击杀+3/每个"""
+    if not killed_entities:
+        return
+    # 角色经验
+    for _ in killed_entities:
+        add_exp_to_role(attacker_entity, 5)
+    # 技能击杀额外奖励
+    if skill_used is not None:
+        for _ in killed_entities:
+            skill_used["proficiency"] = skill_used.get("proficiency", 0) + 3
+            check_skill_upgrade(skill_used, attacker_entity)
+
 def perform_attack(combatants, current_index, target_index, skill_points):
-    """
-    执行攻击（在动画结束后调用）
-    返回 (result, next_index, new_skill_points)
-    """
     attacker = combatants[current_index]["entity"]
     target_entity = combatants[target_index]["entity"]
-    dmg = random.randint(20, 40) + attacker["atk"]
+
+    # 计算伤害（只计算一次）
+    factor = get_attack_factor()
+    base_dmg = int(attacker["atk"] * factor)
+    mult = get_attack_multiplier(attacker)
+    dmg = int(base_dmg * mult)
+    dmg = max(1, dmg)
+
     target_entity["hp"] -= dmg
-    msg = f"{attacker['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
-    print(msg)                                                              
-    game.add_battle_message(msg)                                            
+    print(f"[DEBUG] 扣血后 {target_entity['name']} HP = {target_entity['hp']}")
+
+    # 检查目标是否死亡
+    killed = []
+    if target_entity["hp"] <= 0:
+        killed.append(target_entity)
+
+    # 发放击杀奖励（普通攻击，技能为 None）
+    if killed:
+        grant_kill_rewards(attacker, None, killed)
+
+    # 消息和伤害数字
+    msg = f"{attacker['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"
+    print(msg)
+    game.add_battle_message(msg)
 
     # 添加伤害数字
     target_type = combatants[target_index]["type"]
@@ -103,14 +159,19 @@ def perform_attack(combatants, current_index, target_index, skill_points):
         pos = formation.ENEMY_POSITIONS[slot_idx]
         pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
     game.add_damage_number(pos, dmg)
+
     # 攻击后嘲讽度+1
     attacker["taunt"] = attacker.get("taunt", 1) + 1
     print(f"{attacker['name']} 的嘲讽度增加到 {attacker['taunt']}")
+
+    # 增加攻击者的疲劳
+    attacker["fatigue"] = attacker.get("fatigue", 0) + 1
+
     result = cleanup_combatants(combatants)
     if result != "continue":
         return result, 0, skill_points
 
-    # 重新定位攻击者索引（可能因死亡前移）
+    # 重新定位攻击者索引
     new_current = None
     for i, c in enumerate(combatants):
         if c["entity"] is attacker:
@@ -142,6 +203,10 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
     if not isinstance(skill, dict):
         print(f"错误：{attacker_entity['name']} 的技能格式错误，应为字典")
         return "continue", current_index, 0, False, None
+    
+    # 技能使用奖励：+1 熟练度
+    skill["proficiency"] = skill.get("proficiency", 0) + 1
+    check_skill_upgrade(skill, attacker_entity)
 
     # 防御性检查：补全缺失的字段
     if "target" not in skill:
@@ -186,18 +251,25 @@ def use_skill(combatants, current_index, player_team, enemies, target_idx=None):
                 game.add_damage_number(pos, heal, color=GREEN)
             elif skill["type"] == "attack":
                 target_entity = enemies[target_idx]  # target_idx 是敌人列表索引
-                dmg = int(skill["value"] + attacker_entity["atk"] + random.randint(-50, 50))
-                # 确保伤害不低于某个最小值（可选）
+                base_atk = attacker_entity["atk"] + skill["value"]
+                factor = get_attack_factor()
+                base_dmg = int(base_atk * factor)
+                mult = get_attack_multiplier(attacker_entity)
+                dmg = int(base_dmg * mult)
                 dmg = max(1, dmg)
                 target_entity["hp"] -= dmg
-                msg = f"{attacker_entity['name']} 使用 {skill['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
-                print(msg)                                                                                          
-                game.add_battle_message(msg)     
-                # 获取敌人实际站位坐标
+                msg = f"{attacker_entity['name']} 使用 {skill['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"
+                print(msg)
+                game.add_battle_message(msg)
+
+                # 添加伤害数字
                 slot_idx = target_entity.get("slot", 0)
                 pos = formation.ENEMY_POSITIONS[slot_idx]
                 pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
                 game.add_damage_number(pos, dmg, color=RED)
+
+                # 增加攻击者的疲劳
+                attacker_entity["fatigue"] = attacker_entity.get("fatigue", 0) + 1
 
                 # 检查战斗结果
                 result = cleanup_combatants(combatants)
@@ -234,8 +306,15 @@ def enemy_attack(combatants, attacker_index, target_index):
     enemy = combatants[attacker_index]["entity"]
     target_entity = combatants[target_index]["entity"]
     
-    dmg = random.randint(15, 30) + enemy["atk"]
-    target_entity["hp"] = max(0, target_entity["hp"] - dmg)
+    # 基础伤害 = 敌人攻击力 × 随机因子（与玩家使用相同的因子函数）
+    factor = get_attack_factor()
+    base_dmg = int(enemy["atk"] * factor)
+    # 应用疲劳倍率（需要导入 get_attack_multiplier）
+    mult = get_attack_multiplier(enemy)
+    dmg = int(base_dmg * mult)
+    dmg = max(1, dmg)
+    target_entity["hp"] -= dmg
+    print(f"[DEBUG] 扣血后 {target_entity['name']} HP = {target_entity['hp']}")   # 新增
     msg = f"{enemy['name']} 攻击 {target_entity['name']}，造成 {dmg} 伤害"   
     print(msg)                                                          
     game.add_battle_message(msg)      
@@ -249,6 +328,7 @@ def enemy_attack(combatants, attacker_index, target_index):
         pos = formation.ENEMY_POSITIONS[slot_idx]
         pos = (pos[0] + formation.SLOT_WIDTH//2, pos[1] - 20)
     game.add_damage_number(pos, dmg)
+    enemy["fatigue"] = enemy.get("fatigue", 0) + 1
 
     result = cleanup_combatants(combatants)
     if result != "continue":
@@ -284,6 +364,6 @@ def calculate_taunt_probabilities(combatants):
     return probs
 
 def reset_team_hp(team):
-    """将所有角色的HP回满"""
     for role in team:
         role["hp"] = role["max_hp"]
+        role["fatigue"] = 0   # 重置疲劳

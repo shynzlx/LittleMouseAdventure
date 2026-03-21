@@ -32,6 +32,7 @@ def perform_gacha(player_team, inventory):
         new_role = random.choice(candidates).copy()
         new_role["exp_to_next"] = level_cfg.BASE_EXP_TO_NEXT  # 技能熟练度相关字段保持不变（如果需要配置化可后续添加）
         new_role["active"] = False          # 新角色默认不上阵
+        new_role["fatigue"] = 0
         player_team.append(new_role)
         print(f"抽到 {rarity} 角色: {new_role['name']}")
         return new_role

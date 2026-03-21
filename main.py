@@ -119,6 +119,12 @@ while running:
                     reward = get_reward_for_level(game.current_level)
                     game.win_reward = reward
                     game.add_reward(reward)
+                    # 战斗胜利经验奖励
+                    active_team = game.get_active_team()
+                    for role in active_team:
+                        if role is not None:
+                            from upgrade import add_exp_to_role
+                            add_exp_to_role(role, game.current_exp_reward)
                     game.set_state(STATE_WIN)
                 elif result == "lose":
                     game.battle_messages.clear()

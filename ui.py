@@ -6,6 +6,54 @@ import avatar_mapper      # 初始化映射
 import formation
 import game               # 新增：访问游戏状态
 import button             # 新增：使用按钮类
+import textwrap
+import re
+
+def clean_story_text(text):
+    """清理故事文本：去除每行前后空格，合并连续空格，但保留换行"""
+    lines = text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        # 去除首尾空格，并将连续空格合并为单个空格
+        cleaned = re.sub(r'\s+', ' ', line.strip())
+        cleaned_lines.append(cleaned)
+    # 用换行符重新连接，并移除空行前后的多余换行
+    return '\n'.join(cleaned_lines)
+
+def draw_multiline_text(surface, text, font_size, color, x, y, max_width, line_height=30):
+    font = get_font(font_size)
+    # 将文本按换行符分割成段落（保留空行）
+    paragraphs = text.split('\n')
+    current_y = y
+    for para in paragraphs:
+        if not para:
+            # 空段落：只增加一行空行
+            current_y += line_height
+            continue
+        # 对每个段落进行自动换行
+        words = list(para)  # 对于中文，按字符拆开可能更精确，这里为了简单，使用空格分词，但中文可能不适配
+        # 更好的方法是逐字符测量，如下：
+        lines = []
+        current_line = ""
+        current_width = 0
+        for ch in para:
+            ch_surf = font.render(ch, True, color)
+            ch_width = ch_surf.get_width()
+            if current_width + ch_width <= max_width:
+                current_line += ch
+                current_width += ch_width
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = ch
+                current_width = ch_width
+        if current_line:
+            lines.append(current_line)
+        # 绘制该段落的每一行
+        for line in lines:
+            surface.blit(font.render(line, True, color), (x, current_y))
+            current_y += line_height
+    return current_y - y
 # 头像缓存
 avatar_cache = {}
 
@@ -329,7 +377,6 @@ def on_cancel_skill():
     game.pending_skill = None
     # 无需其他操作，下次绘制时按钮会变回技能
 
-# ui.py - 重写 draw_battle 函数
 import formation
 def draw_battle(surface):
     global current_buttons
@@ -657,8 +704,6 @@ def on_run_click():
     reset_team_hp(game.player_team)
     game.set_state(STATE_CHALLENGE)
 
-
-# 绘制养成界面（从 upgrade.py 调用）
 # 绘制养成界面（从 upgrade.py 调用）
 def draw_upgrade(surface):
     global current_buttons
@@ -721,34 +766,94 @@ def draw_upgrade(surface):
         draw_text(surface, role["name"], FONT_BIG[1], WHITE, 390, 120)
         y = 180
         draw_text(surface, f"稀有度: {role['rarity']}", FONT_MEDIUM[1], ORANGE, 650, y); y += 40
-        draw_text(surface, f"等级: Lv.{role['level']}", FONT_MEDIUM[1], YELLOW, 650, y); y += 40
-        draw_text(surface, f"经验: {role['exp']}/{role['exp_to_next']}", FONT_MEDIUM[1], WHITE, 650, y); y += 40
         draw_text(surface, f"HP: {role['hp']}/{role['max_hp']}", FONT_MEDIUM[1], GREEN, 650, y); y += 40
         draw_text(surface, f"攻击: {role['atk']}", FONT_MEDIUM[1], RED, 650, y); y += 40
         draw_text(surface, f"耐力: {role['stamina']}", FONT_MEDIUM[1], BLUE, 650, y); y += 40
         draw_text(surface, f"速度: {role['speed']}", FONT_MEDIUM[1], CYAN, 650, y); y += 40
-        draw_text(surface, "技能：", FONT_MEDIUM[1], WHITE, 400, 480)
+        draw_text(surface, "技能：", FONT_SMALL[1], WHITE, 330, 450)
         sy = 520
         for sk in role["skills"]:
-            # 获取效果值，如果不存在则显示 ?
-            effect_value = sk.get('value', '?')
-            text = f"{sk['name']} Lv.{sk['level']} ({sk['proficiency']}/{sk['prof_to_next']})"
-            draw_text(surface, text, FONT_SMALL[1], WHITE, 400, sy)
-            sy += 35
+            # 技能名称和等级
+            skill_name_level = f"{sk['name']} Lv.{sk['level']}"
+            draw_text(surface, skill_name_level, 18, WHITE, 330, 510)           
+            #——————————————熟练度进度条位置——————————————
+            bar_x = 375
+            bar_y = 500
+            bar_width = 300
+            bar_height = 20
+            current_prof = sk["proficiency"]
+            max_prof = sk["prof_to_next"]           
+            # 背景条
+            pygame.draw.rect(surface, GRAY, (bar_x, bar_y, bar_width, bar_height))
+            if max_prof > 0:
+                fill_width = int(bar_width * current_prof / max_prof)
+                pygame.draw.rect(surface, PURPLE, (bar_x, bar_y, fill_width, bar_height))           
+            # 文字居中显示
+            prof_text = f"{current_prof}/{max_prof}"
+            draw_text(surface, prof_text, 14, WHITE, bar_x + bar_width//2, bar_y + bar_height//2)          
+            sy += 50   # 每个技能占用高度（名称行+进度条行+间距）
 
-    # 道具按钮
+        # 绘制等级
+        draw_text(surface, f"等级: Lv.{role['level']}", FONT_SMALL[1], YELLOW, 330, 570)
+        #——————————————经验进度条位置——————————————
+        exp_bar_x = 375
+        exp_bar_y = 600
+        bar_width = 300
+        bar_height = 20
+        current_exp = role["exp"]
+        max_exp = role["exp_to_next"]
+        # 背景条
+        pygame.draw.rect(surface, GRAY, (exp_bar_x, exp_bar_y, bar_width, bar_height))
+        # 填充条（当前经验比例）
+        if max_exp > 0:
+            fill_width = int(bar_width * current_exp / max_exp)
+            pygame.draw.rect(surface, GREEN, (exp_bar_x, exp_bar_y, fill_width, bar_height))
+        # 文字居中显示（经验值/最大值）
+        exp_text = f"{current_exp}/{max_exp}"
+        draw_text(surface, exp_text, 14, WHITE, exp_bar_x + bar_width//2, exp_bar_y + bar_height//2)
+        # 为下一个属性预留间距
+        y += 40
+
+    if "story" in role and role["story"]:   ###背景故事
+        story_y = sy - 400  # sy 是技能列表绘制结束后的 y 坐标
+        draw_text(surface, "背景故事：", FONT_SMALL[1], YELLOW, 950, story_y)
+        cleaned_story = clean_story_text(role["story"])
+        # 绘制多行故事，最大宽度 400 像素
+        used_height = draw_multiline_text(surface, role["story"], 16, WHITE, 800, story_y + 30, max_width=400)
+
+   # 右下角按钮设置（参考主菜单）
+    margin = 20
+    bottom_y = SCREEN_HEIGHT - MENU_BTN_HEIGHT - margin
+    btn_width = 120          # 适当加宽，因为文字较多
+    btn_height = MENU_BTN_HEIGHT
+    font_size = 15           # 与主菜单右下角按钮字号一致
+
+    # 从右向左计算坐标
+    x_exp = SCREEN_WIDTH - btn_width - margin
+    x_skill = x_exp - btn_width - margin
+
+    # 经验书按钮
     exp_btn = button.Button(
-        rect=(600, 450, 180, 60),
-        text=f"经验书 ({inventory['exp_book']})", font_size=FONT_MEDIUM[1],
-        bg_color=GRAY, border_color=GREEN, text_color=WHITE,
+        rect=(x_exp, bottom_y, btn_width, btn_height),
+        text=f"经验书 ({inventory['exp_book']})",
+        font_size=font_size,
+        bg_color=GRAY,
+        border_color=GREEN,
+        text_color=WHITE,
+        bg_alpha=200,        # 半透明效果（可选）
         callback=lambda: use_exp_book(selected_role_index)
     )
     current_buttons.append(exp_btn)
 
+    # 技能书按钮
     skill_btn = button.Button(
-        rect=(800, 450, 180, 60),
-        text=f"技能书 ({inventory['skill_book']})", font_size=FONT_MEDIUM[1],
-        bg_color=GRAY, border_color=PURPLE, text_color=WHITE,
+        rect=(x_skill, bottom_y, btn_width, btn_height),
+        text=f"技能书 ({inventory['skill_book']})",
+        font_size=font_size,
+        bg_color=GRAY,
+        border_color=PURPLE,
+        text_color=WHITE,
+        bg_alpha=200,
         callback=lambda: use_skill_book(selected_role_index)
     )
     current_buttons.append(skill_btn)
@@ -874,11 +979,12 @@ def start_battle():
         return
     from levels import setup_enemy
     from battle import initialize_combatants, get_next_attacker
-    enemies, skill_points = setup_enemy(game.confirm_level)
+    enemies, skill_points, exp_reward = setup_enemy(game.confirm_level)   # 接收三个值
     game.enemies = enemies
     game.combatants = initialize_combatants(active_team, enemies)
     game.current_index = get_next_attacker(game.combatants)
     game.current_skill_points = skill_points
+    game.current_exp_reward = exp_reward      # 保存到全局
     game.battle_sub_state = BATTLE_STATE_ACTION
     game.set_state(STATE_CHALLENGE_BATTLE)
 

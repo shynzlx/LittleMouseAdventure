@@ -1,6 +1,7 @@
 # avatar_mapper.py
 
 AVATAR_MAP = {
+    "医生鼠鼠":"doctor_mouse.png",
     "警卫鼠鼠": "guard_mouse.png",
     "短剑鼠鼠": "sword_mouse.png",
     "盾牌鼠鼠": "shield_mouse.png",
@@ -9,6 +10,7 @@ AVATAR_MAP = {
 
 ATTACK_AVATAR_MAP = {
     "警卫鼠鼠": "guard_mouse_attack.png",
+    "医生鼠鼠":"doctor_mouse_attack.png",
     "短剑鼠鼠": "sword_mouse_attack.png",
     "盾牌鼠鼠": "shield_mouse_attack.png",
     "传奇鼠鼠": "legend_mouse_attack.png",
@@ -17,6 +19,7 @@ ATTACK_AVATAR_MAP = {
 #技能映射
 SKILL_AVATAR_MAP = {
     "警卫鼠鼠": "guard_mouse_skill.png",
+    "医生鼠鼠":"doctor_mouse_skill.png",
     "短剑鼠鼠": "sword_mouse_skill.png",
     "盾牌鼠鼠": "shield_mouse_skill.png",
     "传奇鼠鼠": "legend_mouse_skill.png",

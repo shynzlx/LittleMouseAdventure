@@ -28,11 +28,14 @@ def load_enemy_base(enemy_name):
             spec = importlib.util.spec_from_file_location(filename[:-3], file_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+            base_stats = module.base_stats
+            stamina = base_stats.get("stamina") 
             if hasattr(module, "name") and module.name == enemy_name:
                 return {
                     "name": module.name,
                     "base_stats": module.base_stats,
                     "growth": module.growth,
-                    "skills": getattr(module, "skills", [])
+                    "skills": getattr(module, "skills", []),
+                    "stamina": stamina
                 }
     return None

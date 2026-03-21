@@ -41,6 +41,7 @@ anim_skill = None                # 当前动画对应的技能字典
 anim_skill_target_idx = None     # 技能目标在 player_team 或 enemies 中的索引
 anim_is_skill = False            # 当前动画是否为技能（用于区分头像）
 anim_mode = "move"                # 当前动画模式："move" 或 "shake"
+current_exp_reward = 0
 
 # 上阵界面相关
 formation_selected_role_index = -1      # 当前选中的角色在 player_team 中的索引，-1表示未选中
@@ -67,12 +68,25 @@ def init_game():
             for key, value in base.items():
                 if key not in role and key not in ("base_stats", "growth"):
                     role[key] = value
-            # 确保技能列表中的每个技能都有完整字段
+            # 特别处理故事：用基础角色的故事覆盖存档中的故事
+            if "story" in base:
+                role["story"] = base["story"]
+            # 同步技能数据
+            base_skills = base.get("skills", [])
             for i, skill in enumerate(role.get("skills", [])):
-                base_skill = base["skills"][i] if i < len(base["skills"]) else {}
-                for k, v in base_skill.items():
-                    if k not in skill:
-                        skill[k] = v
+                if i < len(base_skills):
+                    base_skill = base_skills[i]
+                    # 1. 补全缺失字段（原有逻辑）
+                    for k, v in base_skill.items():
+                        if k not in skill:
+                            skill[k] = v
+                    # 2. 根据基础配置中的 prof_to_next 重新计算当前等级的所需经验
+                    if "prof_to_next" in base_skill:
+                        base_prof = base_skill["prof_to_next"]
+                        level = skill.get("level", 1)
+                        # 公式：当前等级所需经验 = 基础经验 × (1.6 ^ (等级-1))
+                        skill["prof_to_next"] = int(base_prof * (1.6 ** (level - 1)))
+                    # 注意：不覆盖 proficiency（熟练度），保留存档中的值
 
     # 为所有角色添加 active 字段（如果没有）
     for i, role in enumerate(player_team):
@@ -86,6 +100,11 @@ def init_game():
             role["slot"] = -1
         # 根据 slot 确定上阵状态
         role["active"] = (0 <= role["slot"] < MAX_ACTIVE)
+
+    # 新增：确保每个角色都有 fatigue 字段
+    for role in player_team:
+        if "fatigue" not in role:
+            role["fatigue"] = 0
 
 # ----- 状态修改函数 -----
 def set_state(new_state):

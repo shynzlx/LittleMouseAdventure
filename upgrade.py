@@ -6,6 +6,55 @@ from constants import *
 from config import skill_config as skill_cfg
 from config import level_config as level_cfg
 
+def add_exp_to_role(role, add_exp):
+    """给角色增加经验，自动处理升级"""
+    role["exp"] += add_exp
+    while role["exp"] >= role["exp_to_next"]:
+        role["exp"] -= role["exp_to_next"]
+        role["level"] += 1
+        new_level = role["level"] + 1
+        role["exp_to_next"] = int(round(
+            level_cfg.BASE_EXP_TO_NEXT * (level_cfg.NEXT_LEVEL_EXP_FACTOR ** (new_level - 1))
+        ))
+        # 属性增加
+        role["max_hp"] += level_cfg.LEVEL_UP_HP_INCREASE
+        role["hp"] = role["max_hp"]
+        role["atk"] += level_cfg.LEVEL_UP_ATK_INCREASE
+        role["stamina"] += level_cfg.LEVEL_UP_STAMINA_INCREASE
+        print(f"{role['name']} 升级到 Lv.{role['level']}")
+
+def check_skill_upgrade(skill, role):
+    """检查技能是否升级，若升级则更新属性和效果值"""
+    while skill["proficiency"] >= skill["prof_to_next"]:
+        skill["proficiency"] -= skill["prof_to_next"]
+        old_level = skill["level"]
+        skill["level"] += 1
+        new_level = skill["level"]
+        skill["prof_to_next"] = int(skill["prof_to_next"] * 1.6)
+
+        # 获取技能类型，选择增量公式
+        skill_type = skill.get("type", "default")
+        formula = skill_cfg.INCREMENT_FORMULAS.get(skill_type)
+        namespace = {"level": old_level, "math": math}
+        try:
+            increment = eval(formula, {"__builtins__": {}}, namespace)
+        except Exception as e:
+            print(f"技能增量公式计算错误: {e}，使用默认增量 0")
+            increment = 0
+        if not isinstance(increment, (int, float)):
+            increment = 0
+
+        old_value = skill.get("value", 0)
+        skill["value"] = old_value + increment
+
+        if skill_type == "taunt":
+            heal = int(role["max_hp"] * skill_cfg.TAUNT_UPGRADE_HEAL_RATIO)
+            role["hp"] = min(role["max_hp"], role["hp"] + heal)
+            print(f"  {skill['name']} 升级到 Lv.{new_level}，效果值 +{increment:.2f}（现 {skill['value']:.2f}），并回复 {heal} HP")
+        else:
+            print(f"  {skill['name']} 升级到 Lv.{new_level}，效果值 +{increment:.2f}，现为 {skill['value']:.2f}")
+
+
 def use_exp_book(selected_role_index, player_team, inventory):
     if inventory["exp_book"] > 0:
         role = player_team[selected_role_index]
